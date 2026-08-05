@@ -10,6 +10,7 @@ import MyDay from "./pages/MyDay";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import FollowUps from "./pages/FollowUps";
+import Reports from "./pages/Reports";
 import Import from "./pages/Import";
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/clients" element={<Clients />} />
         <Route path="/clients/:id" element={<ClientDetail />} />
         <Route path="/follow-ups" element={<FollowUps />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/import" element={<Import />} />
         <Route path="/profile" element={<Profile />} />
       </Route>

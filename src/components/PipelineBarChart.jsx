@@ -2,13 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PIPELINE_STAGES } from "../lib/pipeline";
 
-const CHART_H = 260;
-const ROW_H = CHART_H / 8;
+const ROW_H = 30;
 const LABEL_W = 108;
 const BAR_H = 16;
 const AXIS_TICKS = 4;
 
-export default function PipelineBarChart({ clients }) {
+export default function PipelineBarChart({ clients, onSelectStage }) {
   const navigate = useNavigate();
   const [hover, setHover] = useState(null);
 
@@ -17,9 +16,11 @@ export default function PipelineBarChart({ clients }) {
     count: clients.filter((c) => c.currentStage === stage.id).length,
   }));
 
+  const rows = counts.length;
+  const CHART_H = rows * ROW_H + 16; // +16 for the axis-label row
   const maxRaw = Math.max(...counts.map((c) => c.count), 1);
   const niceMax = niceCeiling(maxRaw);
-  const plotW = 100; // percent-based plot width
+  const selectStage = (stageId) => (onSelectStage ? onSelectStage(stageId) : navigate(`/clients?stage=${stageId}`));
 
   return (
     <div className="relative">
@@ -50,7 +51,7 @@ export default function PipelineBarChart({ clients }) {
               key={stage.id}
               onMouseEnter={() => setHover(stage.id)}
               onMouseLeave={() => setHover(null)}
-              onClick={() => navigate(`/clients?stage=${stage.id}`)}
+              onClick={() => selectStage(stage.id)}
               className="cursor-pointer"
             >
               <rect x={0} y={i * ROW_H} width={560} height={ROW_H} fill={isHover ? "#f8fafc" : "transparent"} />
@@ -88,7 +89,7 @@ export default function PipelineBarChart({ clients }) {
         (() => {
           const idx = counts.findIndex((c) => c.stage.id === hover);
           const { stage, count } = counts[idx];
-          const topPct = ((idx + 0.5) / 8) * 100;
+          const topPct = ((idx + 0.5) / counts.length) * 100;
           return (
             <div
               className="pointer-events-none absolute right-2 -translate-y-1/2 rounded-lg bg-navy px-3 py-1.5 text-xs font-medium text-white shadow-lg"

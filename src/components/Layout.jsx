@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Plus, Compass, LayoutGrid, CalendarDays, Users, Clock, Upload } from "lucide-react";
+import { Plus, Compass, LayoutGrid, CalendarDays, Users, Clock, Upload, BarChart3 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import GlobalSearch from "./GlobalSearch";
 import NotificationsDropdown from "./NotificationsDropdown";
 import AddClientModal from "./AddClientModal";
+import ReconnectModal from "./ReconnectModal";
 
 const NAV_LINKS = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
   { to: "/my-day", label: "My Day", icon: CalendarDays },
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/follow-ups", label: "Follow-ups", icon: Clock },
+  { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/import", label: "Import", icon: Upload },
 ];
 
@@ -80,6 +82,7 @@ export default function Layout() {
       </button>
 
       <AddClientModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <ReconnectModal />
     </div>
   );
 }

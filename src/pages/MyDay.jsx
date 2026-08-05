@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, Flame, PhoneCall, CalendarClock, FileText } from "lucide-react";
 import { useClients } from "../context/ClientsContext";
+import { useGoogleCalendar } from "../context/GoogleCalendarContext";
 import { todayLong, todayISO, formatDate } from "../lib/followUp";
 import { formatTime } from "../lib/notifications";
 import { useToast } from "../context/ToastContext";
@@ -11,6 +12,7 @@ import GoogleMeetingsSection from "../components/GoogleMeetingsSection";
 export default function MyDay() {
   const { clients, isTaskDoneToday, toggleDailyTask, snooze, rescheduleFollowUp, rescheduleMeeting, toggleFileStatus } =
     useClients();
+  const { todaysEvents } = useGoogleCalendar();
   const { addToast } = useToast();
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
 
@@ -42,12 +44,14 @@ export default function MyDay() {
     return items;
   }, [clients]);
 
-  const totalItems = highPriority.length + calls.length + meetingsToday.length + pendingFiles.length;
+  const totalItems =
+    highPriority.length + calls.length + meetingsToday.length + pendingFiles.length + todaysEvents.length;
   const doneCount =
     highPriority.filter((c) => isTaskDoneToday(c.id, "high")).length +
     calls.filter((c) => isTaskDoneToday(c.id, "call")).length +
     meetingsToday.filter((c) => isTaskDoneToday(c.id, "meeting")).length +
-    pendingFiles.filter(({ file }) => file.status === "done").length;
+    pendingFiles.filter(({ file }) => file.status === "done").length +
+    todaysEvents.filter((e) => isTaskDoneToday(e.id, "gcal")).length;
   const remainingCount = totalItems - doneCount;
   const overdueCount = clients.filter((c) => c.nextFollowUp === "Overdue" && !isTaskDoneToday(c.id, "high")).length;
   const progressPct = totalItems === 0 ? 0 : Math.round((doneCount / totalItems) * 100);

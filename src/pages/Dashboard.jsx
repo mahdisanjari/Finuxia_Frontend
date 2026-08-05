@@ -1,19 +1,28 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, UserCheck, CalendarClock, AlertTriangle, Sparkles, Flame, PhoneCall, FileText } from "lucide-react";
+import { Users, UserCheck, CalendarClock, AlertTriangle, Sparkles, Flame, PhoneCall, FileText, ArrowRight } from "lucide-react";
 import { useClients } from "../context/ClientsContext";
 import { useAuth } from "../context/AuthContext";
 import { isLead } from "../lib/pipeline";
 import { formatTime } from "../lib/notifications";
 import { todayISO, todayLong } from "../lib/followUp";
+import { runPipeline, filterByMonth, clientActivityDate, currentMonthKey, monthLabel } from "../lib/chartPipeline";
 import PipelineBarChart from "../components/PipelineBarChart";
 import FollowUpDonutChart from "../components/FollowUpDonutChart";
+import MonthFilter from "../components/MonthFilter";
 
 export default function Dashboard() {
   const { clients } = useClients();
   const { user } = useAuth();
   const navigate = useNavigate();
   const today = todayISO();
+
+  // Charts default to the current calendar month.
+  const [month, setMonth] = useState(currentMonthKey());
+  const monthClients = useMemo(
+    () => runPipeline(clients, [filterByMonth(month, clientActivityDate)]),
+    [clients, month]
+  );
 
   const totalLeads = clients.filter((c) => isLead(c.currentStage)).length;
   const totalClients = clients.filter((c) => !isLead(c.currentStage)).length;
@@ -60,20 +69,33 @@ export default function Dashboard() {
         <StatCard icon={Sparkles} label="New Leads This Week" value={newLeadsThisWeek} color="text-av-purple" bg="bg-av-purple/10" />
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <MonthFilter value={month} onChange={setMonth} includeAll />
+        <button
+          onClick={() => navigate(`/reports?month=${month}`)}
+          className="flex items-center gap-1.5 text-xs font-semibold text-gold-dark transition hover:text-gold"
+        >
+          View full report
+          <ArrowRight size={13} />
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <section className="rounded-2xl bg-white p-6 shadow-sm lg:col-span-3">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold text-navy">Pipeline by Stage</h2>
-            <span className="text-xs text-slate-400">{clients.length} total clients</span>
+            <span className="text-xs text-slate-400">
+              {monthClients.length} {month ? `in ${monthLabel(month)}` : "total"}
+            </span>
           </div>
-          <PipelineBarChart clients={clients} />
+          <PipelineBarChart clients={monthClients} onSelectStage={(stageId) => navigate(`/reports?month=${month}&stage=${stageId}`)} />
         </section>
 
         <section className="rounded-2xl bg-white p-6 shadow-sm lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold text-navy">Follow-ups by Urgency</h2>
           </div>
-          <FollowUpDonutChart clients={clients} />
+          <FollowUpDonutChart clients={monthClients} />
         </section>
       </div>
 
