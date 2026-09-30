@@ -1,0 +1,482 @@
+/**
+ * Thin REST client for the Finuxia backend.
+ * Base URL comes from VITE_API_URL (see .env); the JWT is attached automatically.
+ */
+const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:4000").replace(/\/$/, "");
+const TOKEN_KEY = "advisorpilot.token";
+
+export function getToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export class ApiError extends Error {
+  constructor(message, { status } = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+// DRF validation errors nest arbitrarily deep — a plain field is
+// {field: ["msg"]}, but a list field (e.g. guestEmails) comes back keyed by
+// index: {guestEmails: {"0": ["Enter a valid email address."]}}. Object.values
+// alone stops one level too shallow and hands back that inner object itself,
+// which stringifies to the literal text "[object Object]" in a toast — dig
+// until an actual string is found instead.
+function firstErrorMessage(data) {
+  if (typeof data === "string") return data;
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const found = firstErrorMessage(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (data && typeof data === "object") {
+    for (const value of Object.values(data)) {
+      const found = firstErrorMessage(value);
+      if (found) return found;
+    }
+    return null;
+  }
+  return null;
+}
+
+async function request(path, { method = "GET", body, auth = true } = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (auth) {
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
+  }
+
+  if (res.status === 204) return null;
+
+  let data = null;
+  const text = await res.text();
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+
+  if (!res.ok) {
+    const message =
+      data?.error ||
+      firstErrorMessage(data) ||
+      `Request failed (${res.status})`;
+    throw new ApiError(String(message), { status: res.status });
+  }
+
+  return data;
+}
+
+// Multipart (file upload) POST — no Content-Type header, so the browser sets
+// the correct multipart boundary itself.
+async function requestMultipart(path, formData) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { method: "POST", headers, body: formData });
+  } catch {
+    throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
+  }
+
+  const text = await res.text();
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+  if (!res.ok) {
+    const message =
+      data?.error ||
+      firstErrorMessage(data) ||
+      `Request failed (${res.status})`;
+    throw new ApiError(String(message), { status: res.status });
+  }
+  return data;
+}
+
+// Authenticated file download — fetches the bytes with the JWT header (a
+// plain <a href> can't carry it), then triggers the browser's save dialog.
+async function downloadFile(path, fallbackName) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { headers });
+  } catch {
+    throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
+  }
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const data = JSON.parse(await res.text());
+      message = data?.error || message;
+    } catch {
+      // ignore
+    }
+    throw new ApiError(message, { status: res.status });
+  }
+
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match?.[1] || fallbackName || "document.pdf";
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Authenticated fetch of a file as a blob object URL — for inline previews
+// (an <iframe> can't send the JWT header, so it can't load the URL itself).
+async function fetchBlobUrl(path) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { headers });
+  } catch {
+    throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
+  }
+  if (!res.ok) throw new ApiError(`Request failed (${res.status})`, { status: res.status });
+  return URL.createObjectURL(await res.blob());
+}
+
+// Multipart POST with upload-progress reporting — fetch() has no upload
+// progress event, so this one path uses XMLHttpRequest instead.
+function requestMultipartXHR(path, formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${BASE_URL}${path}`);
+    const token = getToken();
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+    }
+    xhr.onerror = () => reject(new ApiError("Can't reach the server. Is the backend running?", { status: 0 }));
+    xhr.onload = () => {
+      let data = null;
+      try {
+        data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        data = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data);
+      } else {
+        const message = data?.error || firstErrorMessage(data) || `Request failed (${xhr.status})`;
+        reject(new ApiError(String(message), { status: xhr.status }));
+      }
+    };
+    xhr.send(formData);
+  });
+}
+
+// Multipart POST that comes back as a file (not JSON) — e.g. a generated PDF
+// built server-side from uploaded documents. Combines requestMultipart's
+// error handling with downloadFile's blob-save tail.
+async function requestMultipartDownload(path, formData, fallbackName) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { method: "POST", headers, body: formData });
+  } catch {
+    throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
+  }
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const data = JSON.parse(await res.text());
+      message = data?.error || firstErrorMessage(data) || message;
+    } catch {
+      // ignore — non-JSON error body
+    }
+    throw new ApiError(message, { status: res.status });
+  }
+
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match?.[1] || fallbackName || "document.pdf";
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export const api = {
+  // auth
+  register: (payload) => request("/api/auth/register", { method: "POST", body: payload, auth: false }),
+  login: (identifier, password) =>
+    request("/api/auth/login", { method: "POST", body: { identifier, password }, auth: false }),
+  me: () => request("/api/auth/me"),
+  updateMe: (patch) => request("/api/auth/me", { method: "PATCH", body: patch }),
+  updateComplianceProfile: (patch) => request("/api/auth/me/compliance-profile", { method: "PATCH", body: patch }),
+  uploadAvatar: (file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return requestMultipart("/api/auth/me/avatar", form);
+  },
+  deleteAvatar: () => request("/api/auth/me/avatar", { method: "DELETE" }),
+  avatarUrl: (userId) => `${BASE_URL}/api/auth/avatar/${userId}`,
+  forgotPassword: (email) =>
+    request("/api/auth/forgot-password", { method: "POST", body: { email }, auth: false }),
+
+  // clients (owner-scoped collection sync)
+  getClients: () => request("/api/clients"),
+  putClients: (clients) => request("/api/clients", { method: "PUT", body: { clients } }),
+
+  // per-user daily-task state
+  getState: () => request("/api/state"),
+  putState: (doneTasks) => request("/api/state", { method: "PUT", body: { doneTasks } }),
+  putGroups: (groups) => request("/api/state", { method: "PUT", body: { groups } }),
+
+  // tutorial / help content (managed from the Django admin panel)
+  getGuides: () => request("/api/guides", { auth: false }),
+
+  // advisor presentations (metadata; PDFs uploaded via admin)
+  getPresentations: () => request("/api/presentations", { auth: false }),
+
+  // support tickets (bug reports / feature requests) — own tickets only;
+  // status changes and admin replies happen in the Django admin panel.
+  getTickets: () => request("/api/tickets"),
+  getTicket: (id) => request(`/api/tickets/${id}`),
+  createTicket: (payload) => request("/api/tickets", { method: "POST", body: payload }),
+  addTicketComment: (id, message) => request(`/api/tickets/${id}/comments`, { method: "POST", body: { message } }),
+
+  // reminders / to-do list (owner-scoped, never touches meetings/analytics)
+  getReminders: () => request("/api/reminders"),
+  createReminder: (payload) => request("/api/reminders", { method: "POST", body: payload }),
+  updateReminder: (id, patch) => request(`/api/reminders/${id}`, { method: "PATCH", body: patch }),
+  deleteReminder: (id) => request(`/api/reminders/${id}`, { method: "DELETE" }),
+  deleteReminderSeries: (seriesId) => request(`/api/reminders/series/${encodeURIComponent(seriesId)}`, { method: "DELETE" }),
+  setReminderStatus: (id, status) => request(`/api/reminders/${id}/status`, { method: "POST", body: { status } }),
+
+  // Automated follow-ups — a per-client rule ("keep emailing them every N
+  // days, AI-drafted, until I turn it off"). Sending itself stays a no-op
+  // server-side until real SMTP credentials are configured.
+  getFollowUpRule: (clientRef) => request(`/api/followups/rules/${encodeURIComponent(clientRef)}`),
+  setFollowUpRule: (clientRef, payload) =>
+    request(`/api/followups/rules/${encodeURIComponent(clientRef)}`, { method: "PUT", body: payload }),
+
+  // Google Drive (server-held OAuth) — per-advisor connect status + client folders
+  getDriveConnectUrl: (nextPath) =>
+    request(`/api/drive/connect${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`),
+  getDriveStatus: () => request("/api/drive/status"),
+  disconnectDrive: () => request("/api/drive/disconnect", { method: "POST" }),
+  setDriveRootFolder: (folder) => request("/api/drive/root-folder", { method: "PUT", body: { folder } }),
+  resetDriveRootFolder: () => request("/api/drive/root-folder", { method: "DELETE" }),
+  openClientDriveFolder: (clientRef, displayName) =>
+    request(`/api/drive/clients/${encodeURIComponent(clientRef)}/folder`, {
+      method: "POST",
+      body: { displayName },
+    }),
+  // Uploads straight into the client's Drive folder (find-or-created the
+  // same way as openClientDriveFolder) and, if the client has an email on
+  // file, notifies them it's there.
+  uploadClientDriveFile: (clientRef, { displayName, clientEmail, file }) => {
+    const form = new FormData();
+    form.append("displayName", displayName);
+    if (clientEmail) form.append("clientEmail", clientEmail);
+    form.append("file", file);
+    return requestMultipart(`/api/drive/clients/${encodeURIComponent(clientRef)}/files`, form);
+  },
+
+  // Client documents — browse/download approved ones, submit new ones for
+  // admin review, and get an AI-suggested topic/summary/keywords for a PDF
+  // before submitting.
+  getDocuments: () => request("/api/documents"),
+  getMyDocuments: () => request("/api/documents/mine"),
+  submitDocument: ({ title, summary, keywords, file }) => {
+    const form = new FormData();
+    form.append("title", title);
+    form.append("summary", summary);
+    form.append("keywords", JSON.stringify(keywords || []));
+    form.append("file", file);
+    return requestMultipart("/api/documents", form);
+  },
+  suggestDocument: (file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return requestMultipart("/api/documents/suggest", form);
+  },
+  downloadDocument: (id, fallbackName) => downloadFile(`/api/documents/${id}/file`, fallbackName),
+
+  // Sales Package Prep (Advisor Assistant) — a 6-step wizard whose draft
+  // state is persisted server-side (so it survives navigating away and
+  // back), plus master data (companies/products/funds) driving the
+  // dropdowns and a final generate step that merges a cover/summary page +
+  // AI-drafted Reason Why Letter + the 6 uploaded documents into one PDF.
+  getSalesPackageCompanies: () => request("/api/sales-packages/companies"),
+  getSalesPackageProducts: (companyId) => request(`/api/sales-packages/companies/${companyId}/products`),
+  getSalesPackageFunds: (companyId, investmentType) =>
+    request(`/api/sales-packages/companies/${companyId}/funds?investmentType=${encodeURIComponent(investmentType)}`),
+
+  getSalesPackages: () => request("/api/sales-packages/packages"),
+  createSalesPackage: () => request("/api/sales-packages/packages", { method: "POST" }),
+  getSalesPackage: (id) => request(`/api/sales-packages/packages/${id}`),
+  saveSalesPackageDraft: (id, data) => request(`/api/sales-packages/packages/${id}`, { method: "PUT", body: { data } }),
+  deleteSalesPackage: (id) => request(`/api/sales-packages/packages/${id}`, { method: "DELETE" }),
+  uploadSalesPackageDocument: (id, docKey, file, onProgress) => {
+    const form = new FormData();
+    form.append("file", file);
+    return requestMultipartXHR(`/api/sales-packages/packages/${id}/documents/${docKey}`, form, onProgress);
+  },
+  previewSalesPackageDocument: (id, docKey) => fetchBlobUrl(`/api/sales-packages/packages/${id}/documents/${docKey}`),
+  downloadReasonWhyLetterPdf: (id) =>
+    downloadFile(`/api/sales-packages/packages/${id}/documents/reasonWhyLetter?as=pdf`, "Reason_Why_Letter.pdf"),
+  downloadSalesPackageDocument: (id, docKey, fallbackName, generated = false) =>
+    downloadFile(`/api/sales-packages/packages/${id}/documents/${docKey}${generated ? "?source=generated" : ""}`, fallbackName),
+  confirmSalesPackage: (id) => request(`/api/sales-packages/packages/${id}/confirm`, { method: "POST" }),
+  draftReasonWhyLetter: (id) => request(`/api/sales-packages/packages/${id}/reason-why-letter`, { method: "POST" }),
+  saveReasonWhyLetter: (id, text) => request(`/api/sales-packages/packages/${id}/reason-why-letter`, { method: "PUT", body: { text } }),
+  generateAgentDisclosure: (id) => request(`/api/sales-packages/packages/${id}/agent-disclosure`, { method: "POST" }),
+  generateSupervisionForm: (id, confirmations) =>
+    request(`/api/sales-packages/packages/${id}/supervision-form`, { method: "POST", body: confirmations }),
+  generateSalesPackage: (id, fallbackName) =>
+    requestMultipartDownload(`/api/sales-packages/packages/${id}/generate`, new FormData(), fallbackName),
+
+  // Billing / subscription plans — modules, plans, purchase (real Stripe
+  // Checkout once configured, an instant "mock" purchase until then).
+  getBillingPlans: () => request("/api/billing/plans"),
+  getMyBillingStatus: () => request("/api/billing/me"),
+  purchasePlan: (planId) => request("/api/billing/purchase", { method: "POST", body: { planId } }),
+  cancelSubscription: () => request("/api/billing/cancel", { method: "POST" }),
+
+  // Booking (Calendly-style) — an advisor's shared availability, their
+  // (possibly several) named booking links, and the request queue are all
+  // authenticated; the /public/* endpoints power the client-facing page.
+  getBookingAvailability: () => request("/api/booking/availability"),
+  updateBookingAvailability: (payload) => request("/api/booking/availability", { method: "PUT", body: payload }),
+
+  getBookingLinks: () => request("/api/booking/links"),
+  createBookingLink: (payload) => request("/api/booking/links", { method: "POST", body: payload }),
+  updateBookingLink: (id, payload) => request(`/api/booking/links/${id}`, { method: "PATCH", body: payload }),
+  deleteBookingLink: (id) => request(`/api/booking/links/${id}`, { method: "DELETE" }),
+
+  getBookingRequests: () => request("/api/booking/requests"),
+  approveBookingRequest: (id) => request(`/api/booking/requests/${id}/approve`, { method: "POST" }),
+  cancelBookingRequest: (id) => request(`/api/booking/requests/${id}/cancel`, { method: "POST" }),
+  rescheduleBookingRequest: (id, date, time) =>
+    request(`/api/booking/requests/${id}/reschedule`, { method: "POST", body: { date, time } }),
+  setBookingRequestGoogleEvent: (id, googleEventId) =>
+    request(`/api/booking/requests/${id}/google-event`, { method: "PUT", body: { googleEventId } }),
+
+  // Server-side Calendar connection (see src.calendar_connect) — separate
+  // from the browser-held one; this is what lets a booking auto-confirm and
+  // land on the advisor's calendar instantly, no one logged in required.
+  getCalendarConnectUrl: (nextPath) =>
+    request(`/api/calendar-connect/connect${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`),
+  getCalendarConnectStatus: () => request("/api/calendar-connect/status"),
+  disconnectCalendarConnect: () => request("/api/calendar-connect/disconnect", { method: "POST" }),
+
+  // Calendar event data — proxied through the server-side connection above,
+  // so the browser never needs its own Google token/login at all.
+  getCalendarEvents: ({ timeMin, timeMax, maxResults } = {}) => {
+    const params = new URLSearchParams();
+    if (timeMin) params.set("timeMin", timeMin);
+    if (timeMax) params.set("timeMax", timeMax);
+    if (maxResults) params.set("maxResults", String(maxResults));
+    const qs = params.toString();
+    return request(`/api/calendar-connect/events${qs ? `?${qs}` : ""}`);
+  },
+  createCalendarEvent: ({ summary, description, startISO, endISO, clientId, attendees }) =>
+    request("/api/calendar-connect/events", {
+      method: "POST",
+      body: { summary, description, startISO, endISO, clientId, attendees },
+    }),
+  updateCalendarEvent: (eventId, patch) =>
+    request(`/api/calendar-connect/events/${encodeURIComponent(eventId)}`, { method: "PATCH", body: patch }),
+  deleteCalendarEvent: (eventId) =>
+    request(`/api/calendar-connect/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }),
+  queryCalendarFreeBusy: (timeMin, timeMax) =>
+    request("/api/calendar-connect/freebusy", { method: "POST", body: { timeMin, timeMax } }),
+
+  // Server-side Zoom connection (see src.zoom_connect) — same shape as the
+  // Calendar connection above; only needed when a booking link's location
+  // is set to Zoom.
+  getZoomConnectUrl: (nextPath) =>
+    request(`/api/zoom-connect/connect${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`),
+  getZoomStatus: () => request("/api/zoom-connect/status"),
+  disconnectZoom: () => request("/api/zoom-connect/disconnect", { method: "POST" }),
+
+  getPublicBookingInfo: (slug) => request(`/api/booking/public/${encodeURIComponent(slug)}`, { auth: false }),
+  getPublicBookingSlots: (slug, date, viewerTz) =>
+    request(
+      `/api/booking/public/${encodeURIComponent(slug)}/slots?date=${encodeURIComponent(date)}${
+        viewerTz ? `&viewerTz=${encodeURIComponent(viewerTz)}` : ""
+      }`,
+      { auth: false }
+    ),
+  requestBooking: (slug, payload) =>
+    request(`/api/booking/public/${encodeURIComponent(slug)}/request`, { method: "POST", body: payload, auth: false }),
+};
+
+// The full shareable link for an advisor's booking page.
+export function bookingPublicUrl(slug) {
+  return `${window.location.origin}/book/${encodeURIComponent(slug)}`;
+}
+
+// Direct download URL for a presentation's own PDF (opened in the browser).
+export function presentationPdfUrl(slug) {
+  return `${BASE_URL}/api/presentations/${encodeURIComponent(slug)}/pdf`;
+}
+
+// Direct download URL for one of a presentation's variant (sub-item) PDFs.
+export function presentationVariantPdfUrl(slug, variantId) {
+  return `${BASE_URL}/api/presentations/${encodeURIComponent(slug)}/variants/${encodeURIComponent(variantId)}/pdf`;
+}
+
+export { BASE_URL };

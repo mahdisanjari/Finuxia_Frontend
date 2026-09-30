@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, MessageSquareText, PhoneCall, Clock3, CalendarClock } from "lucide-react";
+import { ChevronDown, MessageSquareText, PhoneCall, Clock3, CalendarClock, Mail } from "lucide-react";
 import { pipelineProgress, getStage } from "../lib/pipeline";
 import { daysAgoLabel } from "../lib/followUp";
+import { formatCanadianPhone } from "../lib/phone";
 import { useToast } from "../context/ToastContext";
+import { openGmailCompose, feedbackEmailDraft } from "../lib/gmail";
 
 const PRIORITY_DOT = {
   High: "bg-av-red",
@@ -25,7 +27,7 @@ const FOLLOWUP_BADGE = {
   TBD: "bg-slate-100 text-slate-500",
 };
 
-export default function ClientCard({ client, done, onToggleDone, onSnooze, onReschedule, subtitle }) {
+export default function ClientCard({ client, done, onToggleDone, onSnooze, onReschedule, subtitle, showFeedbackEmail }) {
   const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -34,6 +36,14 @@ export default function ClientCard({ client, done, onToggleDone, onSnooze, onRes
   const stage = getStage(client.currentStage);
   const progress = pipelineProgress(client.currentStage);
   const firstNote = client.notes?.[0]?.text;
+
+  const handleSendFeedbackEmail = () => {
+    if (!client.email) {
+      addToast(`No email on file for ${fullName}`.trim());
+      return;
+    }
+    openGmailCompose(feedbackEmailDraft(client, { meetingLabel: client.meeting?.label }));
+  };
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
@@ -100,6 +110,18 @@ export default function ClientCard({ client, done, onToggleDone, onSnooze, onRes
         </button>
       </div>
 
+      {showFeedbackEmail && done && (
+        <div className="border-t border-slate-100 px-4 py-2.5">
+          <button
+            onClick={handleSendFeedbackEmail}
+            className="flex items-center gap-1.5 rounded-lg bg-av-blue/10 px-3 py-1.5 text-xs font-semibold text-av-blue transition hover:bg-av-blue/20"
+          >
+            <Mail size={13} />
+            Send feedback email
+          </button>
+        </div>
+      )}
+
       <div
         className={`grid transition-all duration-200 ease-out ${
           expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
@@ -110,7 +132,7 @@ export default function ClientCard({ client, done, onToggleDone, onSnooze, onRes
             <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Phone</p>
-                <p className="text-navy">{client.phone || "—"}</p>
+                <p className="text-navy">{formatCanadianPhone(client.phone) || "—"}</p>
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Last Contact</p>

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { useClients } from "../context/ClientsContext";
 import { getStage, PIPELINE_STAGES } from "../lib/pipeline";
+import { formatCanadianPhone } from "../lib/phone";
 
 const PRIORITY_DOT = { High: "bg-av-red", Medium: "bg-av-amber", Low: "bg-av-green" };
 const FOLLOWUP_BADGE = {
@@ -22,7 +23,7 @@ const AVATAR_BG = {
 };
 
 export default function Clients() {
-  const { clients } = useClients();
+  const { clients, loading } = useClients();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [query, setQuery] = useState("");
@@ -83,7 +84,12 @@ export default function Clients() {
         </select>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading && clients.length === 0 ? (
+        <div className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-12 text-sm text-slate-400">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-gold" />
+          Loading clients…
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center text-sm text-slate-400">
           No clients match your filters.
         </div>
@@ -109,7 +115,7 @@ export default function Clients() {
                   <p className="truncate text-sm font-semibold text-navy">
                     {c.first} {c.last}
                   </p>
-                  <p className="truncate text-xs text-slate-400">{c.phone || c.email || "—"}</p>
+                  <p className="truncate text-xs text-slate-400">{formatCanadianPhone(c.phone) || c.email || "—"}</p>
                 </div>
                 <span className={`hidden shrink-0 h-2.5 w-2.5 rounded-full sm:block ${PRIORITY_DOT[c.priority]}`} />
                 <span className="hidden shrink-0 rounded-full bg-navy/5 px-2.5 py-0.5 text-xs font-medium text-navy/70 sm:block">

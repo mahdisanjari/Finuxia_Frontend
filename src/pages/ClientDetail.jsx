@@ -1,14 +1,22 @@
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams, Link } from "react-router-dom";
-import { ArrowLeft, Sparkles, X, Phone, Mail, Send, CalendarDays, Copy, Check } from "lucide-react";
+import { useParams, useSearchParams, useNavigate, Link } from "react-router-dom";
+import { ArrowLeft, Sparkles, X, Phone, Mail, Send, CalendarDays, CalendarClock, Copy, Check, UserPlus, Pencil, Trash2, Briefcase, Cake, Instagram, BellPlus } from "lucide-react";
 import { useClients } from "../context/ClientsContext";
 import { useToast } from "../context/ToastContext";
+import { formatCanadianPhone } from "../lib/phone";
 import { pipelineProgress, getStage } from "../lib/pipeline";
-import { formatDate, daysAgoLabel } from "../lib/followUp";
+import { formatDate, daysAgoLabel, todayISO } from "../lib/followUp";
 import { generateFollowUpMessage, MESSAGE_TONES } from "../lib/ai";
+import { api } from "../lib/api";
 import MeetingModal from "../components/MeetingModal";
 import Timeline from "../components/Timeline";
 import NotesSection from "../components/NotesSection";
+import AddClientModal from "../components/AddClientModal";
+import OpenDriveFolderButton from "../components/OpenDriveFolderButton";
+import UploadClientFileButton from "../components/UploadClientFileButton";
+import ClientGroupsPicker from "../components/ClientGroupsPicker";
+import FollowUpAutomationPanel from "../components/FollowUpAutomationPanel";
+import ReminderModal from "../components/ReminderModal";
 
 const AVATAR_BG = {
   "av-blue": "bg-av-blue",
@@ -21,10 +29,15 @@ const AVATAR_BG = {
 
 export default function ClientDetail() {
   const { id } = useParams();
-  const { getClient, addNote, editNote, deleteNote } = useClients();
+  const { getClient, addNote, editNote, deleteNote, deleteClient } = useClients();
+  const { addToast } = useToast();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [aiOpen, setAiOpen] = useState(searchParams.get("ai") === "1");
   const [editingStageId, setEditingStageId] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [addingFollowUp, setAddingFollowUp] = useState(false);
 
   const client = getClient(id);
 
@@ -67,20 +80,58 @@ export default function ClientDetail() {
               <p className="text-sm text-slate-500">{client.priority} priority · Joined {formatDate(client.joined)}</p>
             </div>
           </div>
-          <button
-            onClick={() => setAiOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-light"
-          >
-            <Sparkles size={15} />
-            Draft Message
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setEditOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-navy transition hover:bg-slate-50"
+            >
+              <Pencil size={14} />
+              Edit
+            </button>
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-av-red transition hover:bg-av-red/5"
+            >
+              <Trash2 size={14} />
+              Delete
+            </button>
+            <OpenDriveFolderButton clientId={client.id} clientName={fullName} />
+            <UploadClientFileButton clientId={client.id} clientName={fullName} clientEmail={client.email} />
+            <button
+              onClick={() => setAddingFollowUp(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-av-blue/30 bg-av-blue/10 px-3 py-2 text-sm font-semibold text-av-blue transition hover:bg-av-blue/20"
+            >
+              <BellPlus size={14} />
+              Add as Follow-up
+            </button>
+            <button
+              onClick={() => setAiOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-light"
+            >
+              <Sparkles size={15} />
+              Draft Message
+            </button>
+          </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 border-t border-slate-100 pt-5 sm:grid-cols-2 lg:grid-cols-4">
-          <InfoRow icon={Phone} label="Phone" value={client.phone || "—"} />
+        <div className="mt-5 grid grid-cols-1 gap-3 border-t border-slate-100 pt-5 sm:grid-cols-2 lg:grid-cols-3">
+          <InfoRow icon={Phone} label="Phone" value={formatCanadianPhone(client.phone) || "—"} />
           <InfoRow icon={Mail} label="Email" value={client.email || "—"} />
           <InfoRow icon={Send} label="Telegram" value={client.telegram || "—"} />
+          <InfoRow icon={UserPlus} label="Referred By" value={client.referredBy || "—"} />
+          <InfoRow icon={Instagram} label="Instagram" value={client.instagram || "—"} />
+          <InfoRow icon={Briefcase} label="Job" value={client.job || "—"} />
+          <InfoRow icon={Cake} label="Date of Birth" value={client.dateOfBirth ? formatDate(client.dateOfBirth) : "—"} />
           <InfoRow icon={CalendarDays} label="Last Contact" value={daysAgoLabel(client.lastContactDate)} />
+          <InfoRow
+            icon={CalendarClock}
+            label="Next Follow-up"
+            value={client.followUpDate ? `${formatDate(client.followUpDate)} · ${client.nextFollowUp}` : client.nextFollowUp || "TBD"}
+          />
+        </div>
+
+        <div className="mt-5 border-t border-slate-100 pt-5">
+          <ClientGroupsPicker clientId={client.id} />
         </div>
 
         <div className="mt-5 border-t border-slate-100 pt-5">
@@ -93,6 +144,22 @@ export default function ClientDetail() {
           </div>
         </div>
       </section>
+
+      <FollowUpAutomationPanel clientRef={client.id} clientName={fullName} />
+
+      {addingFollowUp && (
+        <ReminderModal
+          kind="followup"
+          lockClient={client}
+          initial={{ title: `Follow up with ${fullName}`.trim(), dueDate: todayISO() }}
+          onClose={() => setAddingFollowUp(false)}
+          onSubmit={async (payload) => {
+            await api.createReminder(payload);
+            addToast(`Follow-up set for ${fullName}`);
+            setAddingFollowUp(false);
+          }}
+        />
+      )}
 
       <section className="rounded-2xl bg-white p-6 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-navy">Notes</h2>
@@ -114,6 +181,44 @@ export default function ClientDetail() {
       )}
 
       {aiOpen && <AIMessagePanel client={client} onClose={closeAi} />}
+
+      <AddClientModal open={editOpen} onClose={() => setEditOpen(false)} client={client} />
+
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4 backdrop-blur-sm animate-fade-in"
+          onClick={() => setConfirmDelete(false)}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-av-red/10 text-av-red">
+              <Trash2 size={20} />
+            </div>
+            <h2 className="text-lg font-semibold text-navy">Delete {fullName}?</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              This permanently removes the client and their notes from your pipeline. This can't be undone.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteClient(client.id);
+                  setConfirmDelete(false);
+                  addToast(`${fullName} deleted`.trim());
+                  navigate("/clients", { replace: true });
+                }}
+                className="rounded-lg bg-av-red px-4 py-2 text-sm font-semibold text-white transition hover:bg-av-red/90"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

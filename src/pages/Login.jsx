@@ -7,18 +7,23 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState("sojagh34vlcc@wfgmail.ca");
-  const [password, setPassword] = useState("Mm315201");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setSubmitting(true);
     try {
-      login(email, password);
+      await login(identifier, password);
       const redirectTo = location.state?.from?.pathname || "/dashboard";
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -36,12 +41,11 @@ export default function Login() {
       }
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <AuthField label="Email">
+        <AuthField label="Email or username">
           <input
-            type="email"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             className={authInputClass()}
             placeholder="you@example.com"
           />
@@ -67,14 +71,11 @@ export default function Login() {
 
         <button
           type="submit"
-          className="mt-1 w-full rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light"
+          disabled={submitting}
+          className="mt-1 w-full rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light disabled:opacity-60"
         >
-          Log In
+          {submitting ? "Signing in..." : "Log In"}
         </button>
-
-        <p className="text-center text-xs text-slate-400">
-          Demo account pre-filled — just hit Log In.
-        </p>
       </form>
     </AuthCard>
   );

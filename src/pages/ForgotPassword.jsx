@@ -10,10 +10,11 @@ export default function ForgotPassword() {
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     try {
-      requestPasswordReset(email);
+      await requestPasswordReset(email);
       setSent(true);
     } catch (err) {
       setError(err.message);

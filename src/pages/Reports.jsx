@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CalendarRange, Link2, RefreshCcw, AlertTriangle, Users, CalendarCheck, Presentation, Download } from "lucide-react";
+import { CalendarRange, Link2, RefreshCcw, AlertTriangle, Users, CalendarCheck, Presentation, Download, FileText, Table2, CheckCircle2 } from "lucide-react";
 import { useGoogleCalendar } from "../context/GoogleCalendarContext";
 import { useClients } from "../context/ClientsContext";
 import { useToast } from "../context/ToastContext";
@@ -19,6 +19,8 @@ import {
 } from "../lib/chartPipeline";
 import { matchClientForEvent, guessClientNameFromEvent } from "../services/meetingClients";
 import { toCsv, downloadCsv } from "../lib/csv";
+import { PIPELINE_STAGES, STAGE_INDEX } from "../lib/pipeline";
+import { openPrintableReport } from "../lib/pdfReport";
 
 function firstOfMonth(offset = 0) {
   const d = new Date();
@@ -88,6 +90,21 @@ export default function Reports() {
   );
   const stageBreakdown = useMemo(() => runPipeline(rangeClients, [groupByStage()]), [rangeClients]);
 
+  // Of clients who've had a business (Strategy) meeting, what share made it
+  // all the way to Closing? Uses currentStage position, not a separate
+  // outcome field — every client's path still funnels through Closing.
+  const businessMeetingClients = useMemo(
+    () => rangeClients.filter((c) => (STAGE_INDEX[c.currentStage] ?? 0) >= STAGE_INDEX.strategy_meeting),
+    [rangeClients]
+  );
+  const closedClients = useMemo(
+    () => businessMeetingClients.filter((c) => (STAGE_INDEX[c.currentStage] ?? 0) >= STAGE_INDEX.closing),
+    [businessMeetingClients]
+  );
+  const closingRate = businessMeetingClients.length
+    ? Math.round((closedClients.length / businessMeetingClients.length) * 100)
+    : 0;
+
   /* --------- calendar-based metrics (need a live connection) ----------- */
   const meetingsByType = useMemo(() => runPipeline(events, [countBy(classifyEventType)]), [events]);
 
@@ -122,12 +139,16 @@ export default function Reports() {
 
   const handleExport = () => {
     const rows = [];
-    rows.push(["AdvisorPilot Report", `${startDate} to ${endDate}`]);
+    rows.push(["Finuxia Report", `${startDate} to ${endDate}`]);
     rows.push([]);
     rows.push(["Summary"]);
     rows.push(["Meetings held", totalMeetings]);
     rows.push(["CP meetings", cpMeetings]);
     rows.push(["Clients active", rangeClients.length]);
+    rows.push([
+      "Business meeting -> Closing rate",
+      `${closingRate}% (${closedClients.length}/${businessMeetingClients.length})`,
+    ]);
     rows.push([]);
     rows.push(["Meetings by type", "Count"]);
     meetingsByType.forEach((t) => rows.push([t.key, t.count]));
@@ -145,6 +166,99 @@ export default function Reports() {
     addToast("Report exported");
   };
 
+  const handleExportPdf = () => {
+    try {
+      openPrintableReport({
+        title: "Finuxia Report",
+        rangeLabel: `${startDate} to ${endDate}`,
+        stats: [
+          { label: "Meetings held", value: totalMeetings },
+          { label: "CP meetings", value: cpMeetings },
+          { label: "Clients active", value: rangeClients.length },
+          { label: "Business meeting -> Closing", value: `${closingRate}% (${closedClients.length}/${businessMeetingClients.length})` },
+        ],
+        sections: [
+          {
+            heading: "Meetings by type",
+            rows: meetingsByType.map((t) => ({ label: t.key, value: t.count })),
+            emptyText: "No meetings in this range.",
+          },
+          {
+            heading: "Meetings month over month",
+            rows: monthOverMonth.map((m) => ({ label: monthShortLabel(m.key), value: m.count })),
+            emptyText: "No meetings in this range.",
+          },
+          {
+            heading: "Pipeline stage breakdown",
+            rows: stageBreakdown.map((s) => ({ label: s.stage.label, value: s.count })),
+            emptyText: "No client activity in this range.",
+          },
+          {
+            heading: "CPs run per client",
+            rows: cpsPerClient.map((c) => ({ label: c.name, value: c.count })),
+            emptyText: "No CP meetings in this range.",
+          },
+        ],
+      });
+    } catch (err) {
+      addToast(err.message || "Could not open the PDF report");
+    }
+  };
+
+  // Funnel export — pipeline position for clients active in the report's
+  // selected date range (same rangeClients everything else on this page
+  // uses), as a styled Excel checklist.
+  const handleExportFunnel = async () => {
+    try {
+      const XLSX = await import("xlsx-js-style");
+      const headerRow = ["#", "Name", "Priority", ...PIPELINE_STAGES.map((s) => s.short)];
+      const dataRows = rangeClients.map((c, i) => {
+        const currentIdx = STAGE_INDEX[c.currentStage] ?? 0;
+        return [
+          i + 1,
+          `${c.first} ${c.last}`.trim(),
+          c.priority || "",
+          ...PIPELINE_STAGES.map((s, idx) => idx <= currentIdx),
+        ];
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet([
+        [`Finuxia Funnel — ${rangeClients.length} clients — ${startDate} to ${endDate}`],
+        headerRow,
+        ...dataRows,
+      ]);
+
+      const lastCol = headerRow.length - 1;
+      ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } }];
+      ws["!cols"] = [{ wch: 5 }, { wch: 24 }, { wch: 10 }, ...PIPELINE_STAGES.map(() => ({ wch: 12 }))];
+
+      const bannerStyle = {
+        fill: { patternType: "solid", fgColor: { rgb: "FF0F1C2E" } },
+        font: { bold: true, color: { rgb: "FFFFFFFF" }, sz: 13 },
+        alignment: { horizontal: "center", vertical: "center" },
+      };
+      const headerStyle = {
+        fill: { patternType: "solid", fgColor: { rgb: "FFC9A84C" } },
+        font: { bold: true, color: { rgb: "FF0F1C2E" } },
+        alignment: { horizontal: "center" },
+      };
+      for (let c = 0; c <= lastCol; c++) {
+        const banner = ws[XLSX.utils.encode_cell({ r: 0, c })];
+        if (banner) banner.s = bannerStyle;
+        else ws[XLSX.utils.encode_cell({ r: 0, c })] = { t: "s", v: "", s: bannerStyle };
+        const head = ws[XLSX.utils.encode_cell({ r: 1, c })];
+        if (head) head.s = headerStyle;
+      }
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Funnel");
+      XLSX.writeFile(wb, `advisorpilot-funnel-${startDate}_to_${endDate}.xlsx`);
+      addToast("Funnel exported");
+    } catch (err) {
+      addToast(err.message || "Could not export the funnel");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -152,13 +266,29 @@ export default function Reports() {
           <h1 className="text-2xl font-bold text-navy">Reports</h1>
           <p className="text-sm text-slate-500">Aggregate your meetings and pipeline over any date range.</p>
         </div>
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-navy shadow-sm transition hover:bg-slate-50"
-        >
-          <Download size={14} />
-          Export CSV
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExportPdf}
+            className="flex items-center gap-1.5 rounded-lg bg-navy px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-navy-light"
+          >
+            <FileText size={14} />
+            Export PDF
+          </button>
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-navy shadow-sm transition hover:bg-slate-50"
+          >
+            <Download size={14} />
+            Export CSV
+          </button>
+          <button
+            onClick={handleExportFunnel}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-navy shadow-sm transition hover:bg-slate-50"
+          >
+            <Table2 size={14} />
+            Export Funnel
+          </button>
+        </div>
       </div>
 
       {/* Filters — single row above all report content */}
@@ -222,6 +352,12 @@ export default function Reports() {
         <StatTile icon={Presentation} label="CP meetings" value={cpMeetings} hint={status !== "connected" ? "Connect Google" : undefined} />
         <StatTile icon={Users} label="Clients active" value={rangeClients.length} />
         <StatTile icon={CalendarRange} label="Types" value={meetingsByType.length} hint={status !== "connected" ? "Connect Google" : undefined} />
+        <StatTile
+          icon={CheckCircle2}
+          label="Business meeting → Closing"
+          value={`${closingRate}%`}
+          hint={`${closedClients.length}/${businessMeetingClients.length} clients`}
+        />
       </div>
 
       {/* Google connection gate for calendar metrics */}

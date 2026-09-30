@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { X, CalendarPlus } from "lucide-react";
+import { X, CalendarPlus, CalendarX } from "lucide-react";
 import { useClients } from "../context/ClientsContext";
 import { useToast } from "../context/ToastContext";
 import { useGoogleCalendar } from "../context/GoogleCalendarContext";
 import { getStageStatusMeta } from "../lib/stageStatus";
+import { todayISO } from "../lib/followUp";
+import TimeSlotSelect from "./TimeSlotSelect";
+
+const MEETING_DURATION_MINUTES = 30;
 
 const STATUS_OPTIONS = [
   { value: "upcoming", label: "Not Scheduled" },
@@ -13,16 +17,22 @@ const STATUS_OPTIONS = [
 ];
 
 export default function MeetingModal({ client, stage, onClose }) {
-  const { updateStage } = useClients();
+  const { updateStage, setStageGoogleEventId } = useClients();
   const { addToast } = useToast();
-  const { isConfigured, status: googleStatus, connect, createEvent } = useGoogleCalendar();
+  const { isConfigured, status: googleStatus, connect, createEvent, deleteEvent, checkAvailability } =
+    useGoogleCalendar();
   const stageState = client.stages[stage.id];
 
   const [date, setDate] = useState(stageState?.date ?? "");
-  const [time, setTime] = useState("09:00");
+  const [time, setTime] = useState("");
   const [status, setStatus] = useState(stageState?.status ?? "upcoming");
   const [note, setNote] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  // Set the moment "Add to Google Calendar" succeeds; cleared once cancelled.
+  // Persisted on the stage itself so it survives closing/reopening this modal.
+  const googleEventId = stageState?.googleEventId;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -42,18 +52,34 @@ export default function MeetingModal({ client, stage, onClose }) {
       return;
     }
 
-    if (!date) return;
+    if (!date || !time) return;
     setSyncing(true);
     try {
       const start = new Date(`${date}T${time}`);
-      const end = new Date(start.getTime() + 30 * 60 * 1000);
-      await createEvent({
+      const end = new Date(start.getTime() + MEETING_DURATION_MINUTES * 60 * 1000);
+
+      // Final guard: re-check just this slot right before booking, since the
+      // dropdown's availability snapshot can go stale (someone else — or
+      // another tab — books over it between selecting and submitting).
+      const stillBusy = await checkAvailability(start.toISOString(), end.toISOString()).catch(() => null);
+      if (stillBusy === null) {
+        addToast("Couldn't confirm this time is still free — please try again.");
+        return;
+      }
+      if (stillBusy.length > 0) {
+        addToast("This time is no longer available. Please select another time.");
+        setTime(""); // force a fresh, re-checked pick
+        return;
+      }
+
+      const created = await createEvent({
         summary: `${stage.label} — ${client.first} ${client.last}`,
-        description: `AdvisorPilot meeting: ${stage.label} with ${client.first} ${client.last}.`,
+        description: `Finuxia meeting: ${stage.label} with ${client.first} ${client.last}.`,
         startISO: start.toISOString(),
         endISO: end.toISOString(),
         clientId: client.id,
       });
+      setStageGoogleEventId(client.id, stage.id, created.id);
       addToast("Added to Google Calendar");
     } catch (err) {
       if (err.needsReconnect) {
@@ -63,6 +89,24 @@ export default function MeetingModal({ client, stage, onClose }) {
       }
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleCancelMeeting = async () => {
+    if (!googleEventId) return;
+    setCancelling(true);
+    try {
+      await deleteEvent(googleEventId);
+      setStageGoogleEventId(client.id, stage.id, null);
+      addToast("Meeting cancelled and removed from Google Calendar");
+    } catch (err) {
+      if (err.needsReconnect) {
+        addToast("Google session expired — click Reconnect and try again.");
+      } else {
+        addToast(err.message || "Could not cancel the meeting");
+      }
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -107,31 +151,41 @@ export default function MeetingModal({ client, stage, onClose }) {
               <input
                 type="date"
                 value={date}
+                min={todayISO()}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-navy outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
               />
             </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Time</span>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-navy outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
-              />
-            </label>
+            <TimeSlotSelect
+              date={date}
+              value={time}
+              onChange={setTime}
+              durationMinutes={MEETING_DURATION_MINUTES}
+            />
           </div>
 
-          {isConfigured && (
+          {isConfigured && googleEventId && googleStatus === "connected" ? (
             <button
               type="button"
-              onClick={handleGoogleButton}
-              disabled={(googleStatus === "connected" && !date) || syncing || googleStatus === "connecting"}
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2 text-xs font-semibold text-gold-dark transition hover:bg-gold/20 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={handleCancelMeeting}
+              disabled={cancelling}
+              className="flex items-center justify-center gap-1.5 rounded-lg border border-av-red/30 bg-av-red/5 px-3 py-2 text-xs font-semibold text-av-red transition hover:bg-av-red/10 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <CalendarPlus size={14} />
-              {googleButtonLabel}
+              <CalendarX size={14} />
+              {cancelling ? "Cancelling..." : "Cancel Meeting"}
             </button>
+          ) : (
+            isConfigured && (
+              <button
+                type="button"
+                onClick={handleGoogleButton}
+                disabled={(googleStatus === "connected" && (!date || !time)) || syncing || googleStatus === "connecting"}
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2 text-xs font-semibold text-gold-dark transition hover:bg-gold/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <CalendarPlus size={14} />
+                {googleButtonLabel}
+              </button>
+            )
           )}
 
           <label className="flex flex-col gap-1.5">

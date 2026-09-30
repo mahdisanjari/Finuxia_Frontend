@@ -1,5 +1,5 @@
 /**
- * Links Google Calendar events to AdvisorPilot clients.
+ * Links Google Calendar events to Finuxia clients.
  *
  * Two match strategies, in priority order:
  *  1. Exact — the event carries `extendedProperties.private.advisorpilotClientId`

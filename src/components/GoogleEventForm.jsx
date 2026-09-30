@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { useGoogleCalendar } from "../context/GoogleCalendarContext";
+import TimeSlotSelect from "./TimeSlotSelect";
 
 function toDateInput(iso) {
   if (!iso) return "";
@@ -12,6 +14,7 @@ function toTimeInput(iso) {
 }
 
 export default function GoogleEventForm({ title, initial, onSubmit, onClose, submitLabel = "Save" }) {
+  const { checkAvailability } = useGoogleCalendar();
   const [summary, setSummary] = useState(initial?.summary || "");
   const [date, setDate] = useState(toDateInput(initial?.startISO) || new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState(toTimeInput(initial?.startISO));
@@ -27,6 +30,20 @@ export default function GoogleEventForm({ title, initial, onSubmit, onClose, sub
     try {
       const start = new Date(`${date}T${time}`);
       const end = new Date(start.getTime() + durationMin * 60 * 1000);
+
+      // Final guard: re-check just this slot right before booking — the
+      // dropdown's availability snapshot can go stale between pick and submit.
+      const stillBusy = await checkAvailability(start.toISOString(), end.toISOString()).catch(() => null);
+      if (stillBusy === null) {
+        setError("Couldn't confirm this time is still free — please try again.");
+        return;
+      }
+      if (stillBusy.length > 0) {
+        setError("This time is no longer available. Please select another time.");
+        setTime("");
+        return;
+      }
+
       await onSubmit({
         summary: summary.trim(),
         startISO: start.toISOString(),
@@ -82,15 +99,7 @@ export default function GoogleEventForm({ title, initial, onSubmit, onClose, sub
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-navy outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
               />
             </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Time</span>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-navy outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
-              />
-            </label>
+            <TimeSlotSelect date={date} value={time} onChange={setTime} durationMinutes={durationMin} />
           </div>
 
           <label className="flex flex-col gap-1.5">

@@ -4,10 +4,15 @@ import { useGoogleCalendar } from "../context/GoogleCalendarContext";
 import { useToast } from "../context/ToastContext";
 
 /**
- * Global watcher: whenever the Google Calendar connection drops to "expired"
- * it surfaces a friendly reconnect prompt. Mounted once in the app shell so
- * any component that hits an expired token gets the same recovery path.
- * Dismissable — cached meetings stay visible behind it, so it never blocks work.
+ * Global watcher: whenever the server-side Google Calendar connection drops
+ * to "expired" or "revoked" it surfaces a friendly reconnect prompt. Mounted
+ * once in the app shell so any screen that hits it gets the same recovery
+ * path. Dismissable — cached meetings stay visible behind it, so it never
+ * blocks work.
+ *
+ * This should be rare: the connection is a refresh token held on the
+ * backend, not a per-session browser token, so it only shows up on a real
+ * disconnection (Google access revoked, or the refresh token itself expired).
  */
 export default function ReconnectModal() {
   const { status, connect, disconnect } = useGoogleCalendar();
@@ -15,23 +20,22 @@ export default function ReconnectModal() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Auto-open on transition into "expired"; auto-close once reconnected.
+  // Auto-open on transition into "expired"/"revoked"; auto-close once reconnected.
   useEffect(() => {
-    if (status === "expired") setOpen(true);
+    if (status === "expired" || status === "revoked") setOpen(true);
     if (status === "connected") setOpen(false);
   }, [status]);
 
-  if (!open || status !== "expired") return null;
+  if (!open || (status !== "expired" && status !== "revoked")) return null;
 
   const handleReconnect = async () => {
     setBusy(true);
     try {
       await connect();
-      addToast("Google Calendar reconnected");
-      setOpen(false);
+      // Unreachable in practice — connect() is a full-page redirect to
+      // Google, so nothing after the await runs in this tab.
     } catch (err) {
       addToast(err.message || "Could not reconnect");
-    } finally {
       setBusy(false);
     }
   };
@@ -59,9 +63,12 @@ export default function ReconnectModal() {
           </button>
         </div>
 
-        <h2 className="text-lg font-semibold text-navy">Google Calendar session expired</h2>
+        <h2 className="text-lg font-semibold text-navy">
+          {status === "revoked" ? "Google Calendar access was revoked" : "Google Calendar session expired"}
+        </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Your meetings are still shown from your last sync, but reconnect to keep them up to date and add new events.
+          Your meetings are still shown from your last sync, but reconnect to keep them up to date and add new
+          events.
         </p>
 
         <div className="mt-5 flex flex-wrap justify-end gap-2">

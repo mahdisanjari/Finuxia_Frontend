@@ -59,4 +59,23 @@ export function isLead(stageId) {
   return stageId !== LAST_STAGE_ID;
 }
 
+/**
+ * A stage counts as "missed" when its meeting date has passed and nothing
+ * happened — status is still "pending" and the advisor hasn't logged
+ * contact since. Resolves itself the moment either becomes true (stage
+ * marked completed/skipped, or a fresh markContacted), so this is always
+ * live-computed rather than stored.
+ */
+export function getMissedStage(client, today) {
+  if (!client?.stages) return null;
+  for (const stage of PIPELINE_STAGES) {
+    const s = client.stages[stage.id];
+    if (!s || s.status !== "pending" || !s.date) continue;
+    if (s.date >= today) continue;
+    if (client.lastContactDate && client.lastContactDate >= s.date) continue;
+    return { stageId: stage.id, label: stage.label, date: s.date };
+  }
+  return null;
+}
+
 export { FIRST_STAGE_ID, LAST_STAGE_ID };

@@ -1,95 +1,123 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-
-const SESSION_KEY = "advisorpilot.session";
-const USERS_KEY = "advisorpilot.users";
-
-const SEED_USER = {
-  name: "Soroush Ojagh",
-  email: "sojagh34vlcc@wfgmail.ca",
-  password: "Mm315201",
-};
+import { api, getToken, setToken } from "../lib/api";
 
 const AuthContext = createContext(null);
 
-function loadUsers() {
-  let stored = {};
-  try {
-    const raw = localStorage.getItem(USERS_KEY);
-    if (raw) stored = JSON.parse(raw);
-  } catch (e) {
-    console.warn("Failed to load users from localStorage", e);
-  }
-  // Always keep the seed account's credentials current, even if an older
-  // seed (different email/password) was previously cached in this browser.
-  return { ...stored, [SEED_USER.email]: SEED_USER };
-}
-
-function loadSession() {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.warn("Failed to load session from localStorage", e);
-  }
-  return null;
-}
-
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(loadUsers);
-  const [user, setUser] = useState(loadSession);
+  const [user, setUser] = useState(null);
+  // `initializing` covers the boot-time /me call so ProtectedRoute doesn't
+  // bounce a logged-in user to /login before their session is restored.
+  const [initializing, setInitializing] = useState(true);
+  // { plan, status, moduleKeys, currentPeriodEnd } — which modules this
+  // account's plan unlocks. null while unknown (still loading, or logged out).
+  const [billing, setBilling] = useState(null);
 
-  useEffect(() => {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  }, [users]);
-
-  useEffect(() => {
-    if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-    else localStorage.removeItem(SESSION_KEY);
-  }, [user]);
-
-  const login = (email, password) => {
-    const key = email.trim().toLowerCase();
-    const record = users[key];
-    if (!record || record.password !== password) {
-      throw new Error("Invalid email or password");
+  const refreshBilling = async () => {
+    try {
+      const status = await api.getMyBillingStatus();
+      setBilling(status);
+      return status;
+    } catch {
+      return null;
     }
-    const session = { name: record.name, email: record.email };
-    setUser(session);
-    return session;
   };
 
-  const register = (name, email, password) => {
-    const key = email.trim().toLowerCase();
-    if (users[key]) throw new Error("An account with this email already exists");
-    const record = { name: name.trim(), email: key, password };
-    setUsers((prev) => ({ ...prev, [key]: record }));
-    const session = { name: record.name, email: record.email };
-    setUser(session);
-    return session;
+  useEffect(() => {
+    let cancelled = false;
+    async function restore() {
+      if (!getToken()) {
+        setInitializing(false);
+        return;
+      }
+      try {
+        const { user: me } = await api.me();
+        if (!cancelled) {
+          setUser(me);
+          refreshBilling();
+        }
+      } catch {
+        // token invalid/expired — clear it
+        setToken(null);
+      } finally {
+        if (!cancelled) setInitializing(false);
+      }
+    }
+    restore();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const login = async (identifier, password) => {
+    const { token, user: u } = await api.login(identifier, password);
+    setToken(token);
+    setUser(u);
+    refreshBilling();
+    return u;
   };
 
-  const requestPasswordReset = (email) => {
-    const key = email.trim().toLowerCase();
-    if (!users[key]) throw new Error("No account found with that email");
+  const register = async (name, email, password) => {
+    const { token, user: u } = await api.register({ name, email, password });
+    setToken(token);
+    setUser(u);
+    refreshBilling();
+    return u;
+  };
+
+  const requestPasswordReset = async (email) => {
+    await api.forgotPassword(email);
     return true;
   };
 
-  const updateProfile = (patch) => {
-    setUser((prev) => {
-      const next = { ...prev, ...patch };
-      setUsers((prevUsers) => ({
-        ...prevUsers,
-        [prev.email]: { ...prevUsers[prev.email], ...patch },
-      }));
-      return next;
-    });
+  const updateProfile = async (patch) => {
+    const { user: u } = await api.updateMe(patch);
+    setUser(u);
+    return u;
   };
 
-  const logout = () => setUser(null);
+  const updateComplianceProfile = async (patch) => {
+    const { user: u } = await api.updateComplianceProfile(patch);
+    setUser(u);
+    return u;
+  };
+
+  const uploadAvatar = async (file) => {
+    const { user: u } = await api.uploadAvatar(file);
+    setUser(u);
+    return u;
+  };
+
+  const removeAvatar = async () => {
+    const { user: u } = await api.deleteAvatar();
+    setUser(u);
+    return u;
+  };
+
+  const logout = () => {
+    setToken(null);
+    setUser(null);
+    setBilling(null);
+  };
+
+  const hasModule = (moduleKey) => (billing?.moduleKeys || []).includes(moduleKey);
 
   const value = useMemo(
-    () => ({ user, login, register, logout, requestPasswordReset, updateProfile }),
-    [user, users]
+    () => ({
+      user,
+      initializing,
+      billing,
+      refreshBilling,
+      hasModule,
+      login,
+      register,
+      logout,
+      requestPasswordReset,
+      updateProfile,
+      updateComplianceProfile,
+      uploadAvatar,
+      removeAvatar,
+    }),
+    [user, initializing, billing]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

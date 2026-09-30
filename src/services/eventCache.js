@@ -1,5 +1,5 @@
 /**
- * Offline cache for Google Calendar events, keyed per AdvisorPilot user.
+ * Offline cache for Google Calendar events, keyed per Finuxia user.
  *
  * We deliberately cache only the *event data* (titles, times, tags) — never
  * the OAuth access token, which stays memory-only for security and because

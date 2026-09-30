@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { todayISO } from "../lib/followUp";
 
 export default function RescheduleModal({ title, currentDate, onSave, onClose }) {
   const [date, setDate] = useState(currentDate || "");
@@ -37,6 +38,7 @@ export default function RescheduleModal({ title, currentDate, onSave, onClose })
               type="date"
               autoFocus
               value={date}
+              min={todayISO()}
               onChange={(e) => setDate(e.target.value)}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-navy outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
             />
