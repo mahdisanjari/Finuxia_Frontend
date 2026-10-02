@@ -18,6 +18,19 @@ export function clearLegacyToken() {
   }
 }
 
+// Everything this app caches in the browser (client list, calendar events, tasks,
+// groups…) is namespaced "advisorpilot." — wiped on logout / session expiry so the
+// next person at a shared computer can't read the previous advisor's client data.
+export function clearLocalData() {
+  try {
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith("advisorpilot."))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // ignore storage errors
+  }
+}
+
 function readCookie(name) {
   const match = document.cookie.split("; ").find((c) => c.startsWith(`${name}=`));
   return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
@@ -61,8 +74,15 @@ async function authedFetch(path, init = {}) {
   };
   let res = await send();
   if (res.status === 401 && !NO_REFRESH_PATHS.some((p) => path.startsWith(p))) {
-    if (await refreshSession()) res = await send();
-    else onSessionExpired();
+    if (await refreshSession()) {
+      res = await send();
+    } else {
+      // The refresh can lose a race with another tab that rotated the cookie a
+      // moment earlier; the browser now holds the new cookies, so try once more
+      // before treating the session as over.
+      res = await send();
+      if (res.status === 401) onSessionExpired();
+    }
   }
   return res;
 }
@@ -221,9 +241,13 @@ async function fetchBlobUrl(path) {
 function requestMultipartXHR(path, formData, onProgress) {
   const attempt = () => sendMultipartXHR(path, formData, onProgress);
   return attempt().catch(async (err) => {
-    if (err.status === 401 && (await refreshSession())) return attempt();
-    if (err.status === 401) onSessionExpired();
-    throw err;
+    if (err.status !== 401) throw err;
+    if (await refreshSession()) return attempt();
+    // Same refresh-race allowance as authedFetch: one more try with the current cookies.
+    return attempt().catch((retryErr) => {
+      if (retryErr.status === 401) onSessionExpired();
+      throw retryErr;
+    });
   });
 }
 

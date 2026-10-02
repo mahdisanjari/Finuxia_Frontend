@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { api, clearLegacyToken, setSessionExpiredHandler } from "../lib/api";
+import { api, clearLegacyToken, clearLocalData, setSessionExpiredHandler } from "../lib/api";
 
 const AuthContext = createContext(null);
 
@@ -90,6 +90,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     // The refresh cookie is httpOnly, so only the server can clear and revoke it.
     api.logout().catch(() => {});
+    clearLocalData();
     setUser(null);
     setBilling(null);
   };
@@ -97,6 +98,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     // The API reports a session that can no longer be refreshed (expired/revoked).
     setSessionExpiredHandler(() => {
+      clearLocalData();
       setUser(null);
       setBilling(null);
     });
