@@ -7,8 +7,14 @@ import { useToast } from "./ToastContext";
 
 const AV_COLORS = ["av-blue", "av-green", "av-amber", "av-red", "av-purple", "av-teal"];
 const SYNC_DEBOUNCE_MS = 600;
+const RETRY_MS = 5000;
 
 const ClientsContext = createContext(null);
+
+// Ids for things that live *inside* a client (notes) or user state (groups):
+// unique per call, no timestamps.
+const newLocalId = () =>
+  typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 
 function normalize(clients) {
   return clients.map((c) => ({
@@ -32,6 +38,13 @@ function cacheKeys(email) {
     groups: `advisorpilot.groups.${suffix}`,
   };
 }
+// What the server last confirmed for a client, minus its `version` — used to
+// tell which clients actually changed locally and need a PATCH.
+function contentJson(client) {
+  const { version, ...rest } = client; // eslint-disable-line no-unused-vars
+  return JSON.stringify(rest);
+}
+
 function readCache(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -59,14 +72,24 @@ export function ClientsProvider({ children }) {
   const [syncError, setSyncError] = useState(null);
 
   const hydratedRef = useRef(false); // becomes true after the initial load settles
+  // id -> { version, json }: the last state the server confirmed for each client.
+  // Edits are sent per client (PATCH with that version), never as a whole list.
+  const snapshotRef = useRef(new Map());
+  const clientsRef = useRef([]);
+  const syncingRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const retryTimer = useRef(null);
   const clientTimer = useRef(null);
   const stateTimer = useRef(null);
   const groupsTimer = useRef(null);
   const keys = cacheKeys(user?.email);
+  clientsRef.current = clients;
 
   // ---- load on login / clear on logout -------------------------------
   useEffect(() => {
     hydratedRef.current = false;
+    snapshotRef.current = new Map();
+    if (retryTimer.current) clearTimeout(retryTimer.current);
     if (clientTimer.current) clearTimeout(clientTimer.current);
     if (stateTimer.current) clearTimeout(stateTimer.current);
     if (groupsTimer.current) clearTimeout(groupsTimer.current);
@@ -91,6 +114,9 @@ export function ClientsProvider({ children }) {
         const [serverClients, serverState] = await Promise.all([api.getClients(), api.getState()]);
         if (cancelled) return;
         const normalized = normalize(serverClients);
+        snapshotRef.current = new Map(
+          normalized.map((c) => [String(c.id), { version: c.version, json: contentJson(c) }])
+        );
         setClients(normalized);
         setDoneTasks(serverState?.doneTasks || {});
         setGroups(serverState?.groups || []);
@@ -118,20 +144,92 @@ export function ClientsProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email]);
 
-  // ---- debounced sync: clients ---------------------------------------
+  // ---- sync: clients (per-client PATCH / DELETE, optimistic concurrency) ----
+  // Each local edit is diffed against what the server last confirmed and sent as
+  // a PATCH carrying that client's version. A 409 means another tab/device saved
+  // first: we adopt the server's copy instead of overwriting it.
+  const adoptServerCopy = (id, serverClient) => {
+    const [fresh] = normalize([serverClient]);
+    snapshotRef.current.set(id, { version: fresh.version, json: contentJson(fresh) });
+    setClients((prev) => prev.map((c) => (String(c.id) === id ? fresh : c)));
+    addToast(`${fresh.first} ${fresh.last}`.trim() + " was changed elsewhere — showing the latest version");
+  };
+
+  const syncOnce = async () => {
+    const snap = snapshotRef.current;
+    const current = clientsRef.current;
+    const currentIds = new Set(current.map((c) => String(c.id)));
+    let failed = false;
+
+    for (const id of [...snap.keys()]) {
+      if (currentIds.has(id)) continue;
+      try {
+        await api.deleteClient(id);
+        snap.delete(id);
+      } catch (err) {
+        if (err.status === 404) snap.delete(id);
+        else {
+          failed = true;
+          setSyncError(err);
+        }
+      }
+    }
+
+    for (const c of current) {
+      const id = String(c.id);
+      const entry = snap.get(id);
+      if (!entry) continue; // not confirmed by the server (e.g. the first load failed) — never PATCH blindly
+      const json = contentJson(c);
+      if (json === entry.json) continue;
+      const { id: _id, version: _version, ...body } = c; // eslint-disable-line no-unused-vars
+      try {
+        const saved = await api.patchClient(id, { ...body, version: entry.version });
+        snap.set(id, { version: saved.version, json });
+        setClients((prev) => prev.map((x) => (String(x.id) === id ? { ...x, version: saved.version } : x)));
+      } catch (err) {
+        if (err.status === 409 && err.data?.client) {
+          adoptServerCopy(id, err.data.client);
+        } else if (err.status === 404) {
+          snap.delete(id);
+          setClients((prev) => prev.filter((x) => String(x.id) !== id));
+          addToast("A client you edited no longer exists — it was removed elsewhere");
+        } else {
+          failed = true;
+          setSyncError(err);
+          addToast(err.message || "Couldn't save changes to the server");
+        }
+      }
+    }
+
+    if (failed) {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      retryTimer.current = setTimeout(runSync, RETRY_MS);
+    } else {
+      setSyncError(null);
+    }
+  };
+
+  const runSync = async () => {
+    if (syncingRef.current) {
+      dirtyRef.current = true; // edits arrived mid-sync — go around again afterwards
+      return;
+    }
+    syncingRef.current = true;
+    try {
+      do {
+        dirtyRef.current = false;
+        await syncOnce();
+      } while (dirtyRef.current);
+    } finally {
+      syncingRef.current = false;
+    }
+  };
+
   useEffect(() => {
     if (!user || !hydratedRef.current) return;
     writeCache(keys.clients, clients);
     if (clientTimer.current) clearTimeout(clientTimer.current);
-    clientTimer.current = setTimeout(() => {
-      api
-        .putClients(clients)
-        .then(() => setSyncError(null))
-        .catch((err) => {
-          setSyncError(err);
-          addToast(err.message || "Couldn't save changes to the server");
-        });
-    }, SYNC_DEBOUNCE_MS);
+    clientTimer.current = setTimeout(runSync, SYNC_DEBOUNCE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients]);
 
@@ -165,12 +263,14 @@ export function ClientsProvider({ children }) {
 
   const nextColor = () => AV_COLORS[clients.length % AV_COLORS.length];
 
-  const addClient = (form) => {
-    const id = Date.now();
+  // Creation waits for the server, which assigns the client's id — so there's no
+  // browser-made id to collide, and callers (the "go to client" navigation,
+  // groups, daily tasks) only ever see the real one. `clientToken` makes a retry
+  // of the same submit return the same client instead of a duplicate.
+  const addClient = async (form, { clientToken } = {}) => {
     const nextFollowUp = form.nextFollowUpDate ? calcNextFollowUp(form.nextFollowUpDate) : "TBD";
 
-    const newClient = {
-      id,
+    const draft = {
       first: form.first.trim(),
       last: form.last.trim(),
       phone: form.phone?.trim() ?? "",
@@ -194,11 +294,14 @@ export function ClientsProvider({ children }) {
       stages: { [form.currentStage || FIRST_STAGE_ID]: { status: "pending", data: {}, files: [] } },
       meeting: null,
       files: [],
-      notes: form.notes?.trim() ? [{ id: Date.now(), text: form.notes.trim(), date: todayISO() }] : [],
+      notes: form.notes?.trim() ? [{ id: newLocalId(), text: form.notes.trim(), date: todayISO() }] : [],
+      clientToken,
     };
 
-    setClients((prev) => [newClient, ...prev]);
-    return newClient;
+    const [created] = normalize([await api.createClient(draft)]);
+    snapshotRef.current.set(String(created.id), { version: created.version, json: contentJson(created) });
+    setClients((prev) => (prev.some((c) => String(c.id) === String(created.id)) ? prev : [created, ...prev]));
+    return created;
   };
 
   const updateClient = (clientId, patch) => {
@@ -252,7 +355,7 @@ export function ClientsProvider({ children }) {
     setClients((prev) =>
       prev.map((c) =>
         c.id === clientId
-          ? { ...c, notes: [{ id: Date.now(), text: text.trim(), date: todayISO() }, ...c.notes] }
+          ? { ...c, notes: [{ id: newLocalId(), text: text.trim(), date: todayISO() }, ...c.notes] }
           : c
       )
     );
@@ -301,7 +404,7 @@ export function ClientsProvider({ children }) {
         }
 
         const notes = note?.trim()
-          ? [{ id: Date.now(), text: note.trim(), date: todayISO(), stage: stageId }, ...c.notes]
+          ? [{ id: newLocalId(), text: note.trim(), date: todayISO(), stage: stageId }, ...c.notes]
           : c.notes;
 
         const lastContact = date
@@ -403,7 +506,7 @@ export function ClientsProvider({ children }) {
     });
   };
 
-  const importClients = (rows) => {
+  const importClients = async (rows) => {
     const results = { successCount: 0, failedRows: [] };
     const created = [];
 
@@ -430,7 +533,6 @@ export function ClientsProvider({ children }) {
         PIPELINE_STAGES.find((s) => s.label.toLowerCase() === rawStage || s.id === rawStage)?.id || FIRST_STAGE_ID;
 
       created.push({
-        id: Date.now() + idx,
         first,
         last,
         phone: row.phone || row.Phone || "",
@@ -455,7 +557,11 @@ export function ClientsProvider({ children }) {
       results.successCount += 1;
     });
 
-    if (created.length) setClients((prev) => [...created, ...prev]);
+    if (created.length) {
+      const saved = normalize(await api.importClients(created));
+      saved.forEach((c) => snapshotRef.current.set(String(c.id), { version: c.version, json: contentJson(c) }));
+      setClients((prev) => [...saved, ...prev]);
+    }
     return results;
   };
 
@@ -468,7 +574,7 @@ export function ClientsProvider({ children }) {
     const trimmed = name.trim();
     if (!trimmed) return null;
     const group = {
-      id: `g-${Date.now()}`,
+      id: `g-${newLocalId()}`,
       name: trimmed,
       color: color || GROUP_COLORS[groups.length % GROUP_COLORS.length],
       memberIds: [],

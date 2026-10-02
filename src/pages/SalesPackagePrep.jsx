@@ -166,6 +166,8 @@ export default function SalesPackagePrep() {
   const [docVersion, setDocVersion] = useState(0);
   const [visited, setVisited] = useState(() => new Set([0]));
   const [saving, setSaving] = useState(false);
+  // The server version this wizard's data is based on; a save sends it so a stale tab can't overwrite a newer save.
+  const packageVersionRef = useRef(null);
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
@@ -224,6 +226,7 @@ export default function SalesPackagePrep() {
   };
 
   const loadPackageInto = (pkg) => {
+    packageVersionRef.current = pkg.version;
     const products = pkg.data.products?.length ? pkg.data.products : [emptyProduct()];
     setStatus(pkg.status);
     setData({ ...emptyData(), ...pkg.data, products });
@@ -298,10 +301,19 @@ export default function SalesPackagePrep() {
     if (!packageId) return;
     setSaving(true);
     try {
-      await api.saveSalesPackageDraft(packageId, data);
+      const saved = await api.saveSalesPackageDraft(packageId, data, packageVersionRef.current);
+      packageVersionRef.current = saved.version;
       if (!silent) addToast("Draft saved");
+      return true;
     } catch (err) {
-      addToast(err.message || "Could not save draft");
+      if (err.status === 409 && err.data?.package) {
+        // Saved from another tab/device first — show that version rather than overwrite it.
+        loadPackageInto(err.data.package);
+        addToast("This package was changed elsewhere — showing the latest version. Re-apply your edits if needed.");
+      } else {
+        addToast(err.message || "Could not save draft");
+      }
+      return false;
     } finally {
       setSaving(false);
     }
@@ -485,7 +497,8 @@ export default function SalesPackagePrep() {
   // ---- Generate ----
   const handleGenerate = async () => {
     setError("");
-    await saveDraft({ silent: true });
+    // Never confirm/generate from data that wasn't saved (e.g. a version conflict reloaded newer data).
+    if (!(await saveDraft({ silent: true }))) return;
     setGenerating(true);
     try {
       await api.confirmSalesPackage(packageId);

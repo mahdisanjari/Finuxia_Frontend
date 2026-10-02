@@ -32,6 +32,7 @@ export default function Import() {
   const { importClients } = useClients();
   const { addToast } = useToast();
   const fileRef = useRef(null);
+  const [importing, setImporting] = useState(false);
 
   const handleDownloadTemplate = async () => {
     // xlsx-js-style (a styled fork of SheetJS) so we can paint the sample row red.
@@ -90,11 +91,18 @@ export default function Import() {
     }
   };
 
-  const handleImport = () => {
-    if (!parsedRows) return;
-    const res = importClients(parsedRows);
-    setResult(res);
-    if (res.successCount > 0) addToast(`Imported ${res.successCount} client${res.successCount === 1 ? "" : "s"}`);
+  const handleImport = async () => {
+    if (!parsedRows || importing) return;
+    setImporting(true);
+    try {
+      const res = await importClients(parsedRows);
+      setResult(res);
+      if (res.successCount > 0) addToast(`Imported ${res.successCount} client${res.successCount === 1 ? "" : "s"}`);
+    } catch (err) {
+      addToast(err.message || "Couldn't import the clients — nothing was saved");
+    } finally {
+      setImporting(false);
+    }
   };
 
   const reset = () => {
@@ -163,9 +171,10 @@ export default function Import() {
               </button>
               <button
                 onClick={handleImport}
-                className="rounded-lg bg-navy px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-navy-light"
+                disabled={importing}
+                className="rounded-lg bg-navy px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-navy-light disabled:opacity-60"
               >
-                Import
+                {importing ? "Importing…" : "Import"}
               </button>
             </div>
           </div>

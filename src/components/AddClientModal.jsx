@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useClients } from "../context/ClientsContext";
 import { useToast } from "../context/ToastContext";
@@ -39,6 +39,10 @@ export default function AddClientModal({ open, onClose, client = null, initialVa
   const { addToast } = useToast();
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  // One idempotency key per "add" attempt: if the request fails or is retried,
+  // the server returns the same client instead of creating a duplicate.
+  const clientTokenRef = useRef(null);
   const isEdit = Boolean(client);
 
   // Prefill from the client when editing, from a draft when adding with a
@@ -46,6 +50,7 @@ export default function AddClientModal({ open, onClose, client = null, initialVa
   useEffect(() => {
     if (!open) return;
     setErrors({});
+    clientTokenRef.current = null;
     if (client) {
       setForm({
         first: client.first || "",
@@ -79,8 +84,9 @@ export default function AddClientModal({ open, onClose, client = null, initialVa
     onClose();
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     const nextErrors = {};
     if (!form.first.trim()) nextErrors.first = "First name is required";
     if (birthDateError(form.dateOfBirth)) nextErrors.dateOfBirth = birthDateError(form.dateOfBirth);
@@ -93,9 +99,20 @@ export default function AddClientModal({ open, onClose, client = null, initialVa
       editClient(client.id, form);
       addToast(`${form.first} ${form.last}`.trim() + " updated");
     } else {
-      const created = addClient(form);
-      addToast(`${created.first} ${created.last} added to pipeline`.trim());
-      onCreated?.(created);
+      clientTokenRef.current ??= typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2);
+      setSaving(true);
+      try {
+        const created = await addClient(form, { clientToken: clientTokenRef.current });
+        clientTokenRef.current = null;
+        addToast(`${created.first} ${created.last} added to pipeline`.trim());
+        onCreated?.(created);
+      } catch (err) {
+        // Keep the form open (and the same token) so the user can simply try again.
+        addToast(err.message || "Couldn't save the client — please try again");
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
     }
     handleClose();
   };
@@ -278,9 +295,10 @@ export default function AddClientModal({ open, onClose, client = null, initialVa
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-navy px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light"
+              disabled={saving}
+              className="rounded-lg bg-navy px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light disabled:opacity-60"
             >
-              {isEdit ? "Save Changes" : "Save Client"}
+              {saving ? "Saving…" : isEdit ? "Save Changes" : "Save Client"}
             </button>
           </div>
         </form>

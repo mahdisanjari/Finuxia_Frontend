@@ -68,10 +68,12 @@ async function authedFetch(path, init = {}) {
 }
 
 export class ApiError extends Error {
-  constructor(message, { status } = {}) {
+  constructor(message, { status, data } = {}) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    // The parsed error body — e.g. a 409 on a client edit carries `client`, the server's latest copy.
+    this.data = data;
   }
 }
 
@@ -131,7 +133,7 @@ async function request(path, { method = "GET", body } = {}) {
       data?.error ||
       firstErrorMessage(data) ||
       `Request failed (${res.status})`;
-    throw new ApiError(String(message), { status: res.status });
+    throw new ApiError(String(message), { status: res.status, data });
   }
 
   return data;
@@ -313,7 +315,10 @@ export const api = {
 
   // clients (owner-scoped collection sync)
   getClients: () => request("/api/clients"),
-  putClients: (clients) => request("/api/clients", { method: "PUT", body: { clients } }),
+  createClient: (client) => request("/api/clients", { method: "POST", body: client }),
+  patchClient: (ref, body) => request(`/api/clients/${encodeURIComponent(ref)}`, { method: "PATCH", body }),
+  deleteClient: (ref) => request(`/api/clients/${encodeURIComponent(ref)}`, { method: "DELETE" }),
+  importClients: (clients) => request("/api/clients/import", { method: "POST", body: { clients } }),
 
   // per-user daily-task state
   getState: () => request("/api/state"),
@@ -404,7 +409,8 @@ export const api = {
   getSalesPackages: () => request("/api/sales-packages/packages"),
   createSalesPackage: () => request("/api/sales-packages/packages", { method: "POST" }),
   getSalesPackage: (id) => request(`/api/sales-packages/packages/${id}`),
-  saveSalesPackageDraft: (id, data) => request(`/api/sales-packages/packages/${id}`, { method: "PUT", body: { data } }),
+  saveSalesPackageDraft: (id, data, version) =>
+    request(`/api/sales-packages/packages/${id}`, { method: "PUT", body: version ? { data, version } : { data } }),
   deleteSalesPackage: (id) => request(`/api/sales-packages/packages/${id}`, { method: "DELETE" }),
   uploadSalesPackageDocument: (id, docKey, file, onProgress) => {
     const form = new FormData();

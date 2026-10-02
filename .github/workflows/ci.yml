@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: https://api.example.invalid
+      - name: Dependency audit (reported, not yet blocking)
+        # xlsx has no fixed release and react-router needs a major upgrade, so
+        # this reports rather than fails until those are resolved.
+        run: npm audit --omit=dev || true
