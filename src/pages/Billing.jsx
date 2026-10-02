@@ -15,6 +15,8 @@ export default function Billing() {
   const { addToast } = useToast();
   const [plans, setPlans] = useState(null);
   const [stripeConfigured, setStripeConfigured] = useState(false);
+  // False in production until payments are connected: paid plans can't be selected yet.
+  const [purchasesOpen, setPurchasesOpen] = useState(true);
   const [purchasingId, setPurchasingId] = useState(null);
 
   useEffect(() => {
@@ -23,6 +25,7 @@ export default function Billing() {
       .then((res) => {
         setPlans(res.plans);
         setStripeConfigured(res.stripeConfigured);
+        setPurchasesOpen(res.purchasesOpen !== false);
       })
       .catch(() => addToast("Could not load plans"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -62,7 +65,14 @@ export default function Billing() {
         </div>
       )}
 
-      {!stripeConfigured && (
+      {!purchasesOpen && (
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <Sparkles size={14} className="shrink-0 text-gold-dark" />
+          Plan purchases aren't open yet. Your current plan stays as it is — we'll announce when paid plans are available.
+        </div>
+      )}
+
+      {purchasesOpen && !stripeConfigured && (
         <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
           <Sparkles size={14} className="shrink-0 text-gold-dark" />
           Payments aren't connected yet — "purchasing" a plan below activates it instantly for testing, with no real charge.
@@ -100,10 +110,18 @@ export default function Billing() {
               <button
                 type="button"
                 onClick={() => handlePurchase(plan)}
-                disabled={isCurrent || purchasingId === plan.id || isLegacy}
+                disabled={isCurrent || purchasingId === plan.id || isLegacy || (!purchasesOpen && plan.priceCents > 0)}
                 className="rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isCurrent ? "Active" : purchasingId === plan.id ? "Processing..." : stripeConfigured ? "Subscribe" : "Get this plan (test)"}
+                {isCurrent
+                  ? "Active"
+                  : purchasingId === plan.id
+                    ? "Processing..."
+                    : !purchasesOpen && plan.priceCents > 0
+                      ? "Not available yet"
+                      : stripeConfigured
+                        ? "Subscribe"
+                        : "Get this plan (test)"}
               </button>
             </div>
           );
