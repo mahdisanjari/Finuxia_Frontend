@@ -21,8 +21,8 @@ export default function Register() {
       setError("Passwords do not match");
       return;
     }
-    if (form.password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (form.password.length < 10) {
+      setError("Password must be at least 10 characters");
       return;
     }
     setSubmitting(true);
@@ -77,7 +77,7 @@ export default function Register() {
             value={form.password}
             onChange={update("password")}
             className={authInputClass()}
-            placeholder="At least 6 characters"
+            placeholder="At least 10 characters"
           />
         </AuthField>
         <AuthField label="Confirm Password">

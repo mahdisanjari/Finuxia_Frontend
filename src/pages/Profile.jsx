@@ -18,24 +18,54 @@ const TABS = [
 ];
 
 export default function Profile() {
-  const { user, updateProfile, uploadAvatar, removeAvatar, logout } = useAuth();
+  const { user, updateProfile, changePassword, uploadAvatar, removeAvatar, logout } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
+  // The login email is the account's recovery handle, so changing it asks for the password.
+  const [emailPassword, setEmailPassword] = useState("");
+  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [pwSaving, setPwSaving] = useState(false);
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState(TABS.some((t) => t.key === searchParams.get("tab")) ? searchParams.get("tab") : "account");
   const [avatarBust, setAvatarBust] = useState(Date.now());
   const [avatarSaving, setAvatarSaving] = useState(false);
   const fileInputRef = useRef(null);
 
+  const emailChanged = email.trim().toLowerCase() !== user.email;
+
   const handleSave = async (e) => {
     e.preventDefault();
+    const newEmail = email.trim().toLowerCase();
     try {
-      await updateProfile({ name, email: email.trim().toLowerCase() });
+      await updateProfile({ name, email: newEmail, ...(emailChanged ? { currentPassword: emailPassword } : {}) });
+      setEmailPassword("");
       addToast("Profile updated");
     } catch (err) {
       addToast(err.message || "Could not update profile");
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (pw.next.length < 10) {
+      addToast("The new password must be at least 10 characters.");
+      return;
+    }
+    if (pw.next !== pw.confirm) {
+      addToast("The new passwords don't match.");
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await changePassword(pw.current, pw.next);
+      setPw({ current: "", next: "", confirm: "" });
+      addToast("Password changed. Your other devices were signed out.");
+    } catch (err) {
+      addToast(err.message || "Could not change the password");
+    } finally {
+      setPwSaving(false);
     }
   };
 
@@ -165,12 +195,62 @@ export default function Profile() {
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-navy outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
               />
             </label>
+            {emailChanged && (
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Current password (required to change your email)
+                </span>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={emailPassword}
+                  onChange={(e) => setEmailPassword(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-navy outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
+                />
+              </label>
+            )}
             <div className="flex justify-end">
               <button
                 type="submit"
                 className="rounded-lg bg-navy px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light"
               >
                 Save Changes
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      {tab === "account" && (
+        <section className="rounded-2xl bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-sm font-semibold text-navy">Change password</h2>
+          <p className="mb-4 text-xs text-slate-500">At least 10 characters. Changing it signs out your other devices.</p>
+          <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
+            {[
+              ["current", "Current password", "current-password"],
+              ["next", "New password", "new-password"],
+              ["confirm", "Confirm new password", "new-password"],
+            ].map(([key, label, autoComplete]) => (
+              <label key={key} className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</span>
+                <input
+                  type="password"
+                  autoComplete={autoComplete}
+                  required
+                  value={pw[key]}
+                  onChange={(e) => setPw((p) => ({ ...p, [key]: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-navy outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
+                />
+              </label>
+            ))}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={pwSaving}
+                className="rounded-lg bg-navy px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light disabled:opacity-60"
+              >
+                {pwSaving ? "Saving..." : "Change Password"}
               </button>
             </div>
           </form>

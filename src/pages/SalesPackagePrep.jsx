@@ -445,11 +445,19 @@ export default function SalesPackagePrep() {
   };
   const handleSaveLetter = async () => {
     try {
-      const pkg = await api.saveReasonWhyLetter(packageId, data.reasonWhyLetterText);
+      const pkg = await api.saveReasonWhyLetter(packageId, data.reasonWhyLetterText, packageVersionRef.current);
+      // The letter is part of the package, so saving it advanced the package version.
+      packageVersionRef.current = pkg.version;
+      setStatus(pkg.status);
       applyDocuments(pkg.documents);
       addToast("Reason Why Letter saved");
     } catch (err) {
-      addToast(err.message || "Could not save the letter");
+      if (err.status === 409 && err.data?.package) {
+        loadPackageInto(err.data.package);
+        addToast("This package was changed elsewhere — showing the latest version. Re-apply your edits if needed.");
+      } else {
+        addToast(err.message || "Could not save the letter");
+      }
     }
   };
   const handleGenerateDisclosure = async () => {
@@ -1771,26 +1779,17 @@ function ReviewStep({
           <div className="mt-5 border-t border-slate-100 pt-5">
             <p className="mb-2 text-sm font-semibold text-navy">Send for signature</p>
             <p className="mb-3 text-xs text-slate-500">
-              Download the generated package above, then upload it into DocuSeal to add signature/date fields and send it to the client. We're trying out both — use whichever your team prefers.
+              Download the generated package above, then upload it into DocuSeal to add signature/date fields and send it to the client.
             </p>
             <div className="flex flex-wrap gap-2">
               <a
-                href="https://docuseal.finuxia.com"
+                href="https://docuseal.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light"
               >
                 <ExternalLink size={14} />
-                Open DocuSeal (Finuxia)
-              </a>
-              <a
-                href="https://docuseal.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-navy transition hover:bg-slate-50"
-              >
-                <ExternalLink size={14} />
-                Open DocuSeal (Cloud)
+                Open DocuSeal
               </a>
             </div>
           </div>

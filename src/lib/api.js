@@ -336,6 +336,10 @@ export const api = {
   avatarUrl: (userId) => `${BASE_URL}/api/auth/avatar/${userId}`,
   forgotPassword: (email) =>
     request("/api/auth/forgot-password", { method: "POST", body: { email } }),
+  resetPassword: (uid, token, password) =>
+    request("/api/auth/reset-password", { method: "POST", body: { uid, token, password } }),
+  changePassword: (currentPassword, newPassword) =>
+    request("/api/auth/change-password", { method: "POST", body: { currentPassword, newPassword } }),
 
   // clients (owner-scoped collection sync)
   getClients: () => request("/api/clients"),
@@ -448,7 +452,8 @@ export const api = {
     downloadFile(`/api/sales-packages/packages/${id}/documents/${docKey}${generated ? "?source=generated" : ""}`, fallbackName),
   confirmSalesPackage: (id) => request(`/api/sales-packages/packages/${id}/confirm`, { method: "POST" }),
   draftReasonWhyLetter: (id) => request(`/api/sales-packages/packages/${id}/reason-why-letter`, { method: "POST" }),
-  saveReasonWhyLetter: (id, text) => request(`/api/sales-packages/packages/${id}/reason-why-letter`, { method: "PUT", body: { text } }),
+  saveReasonWhyLetter: (id, text, version) =>
+    request(`/api/sales-packages/packages/${id}/reason-why-letter`, { method: "PUT", body: version ? { text, version } : { text } }),
   generateAgentDisclosure: (id) => request(`/api/sales-packages/packages/${id}/agent-disclosure`, { method: "POST" }),
   generateSupervisionForm: (id, confirmations) =>
     request(`/api/sales-packages/packages/${id}/supervision-form`, { method: "POST", body: confirmations }),

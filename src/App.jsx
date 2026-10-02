@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import BookingPublic from "./pages/BookingPublic";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
 import MyDay from "./pages/MyDay";
@@ -40,6 +41,7 @@ export default function App() {
       <Route path="/book/:slug" element={<BookingPublic />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/support" element={<SupportPublic />} />

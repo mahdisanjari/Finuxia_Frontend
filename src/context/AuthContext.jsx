@@ -63,6 +63,13 @@ export function AuthProvider({ children }) {
     return true;
   };
 
+  const changePassword = async (currentPassword, newPassword) => {
+    // Other devices are signed out; this one gets a fresh session from the response.
+    const { user: u } = await api.changePassword(currentPassword, newPassword);
+    setUser(u);
+    return u;
+  };
+
   const updateProfile = async (patch) => {
     const { user: u } = await api.updateMe(patch);
     setUser(u);
@@ -119,6 +126,7 @@ export function AuthProvider({ children }) {
       logout,
       requestPasswordReset,
       updateProfile,
+      changePassword,
       updateComplianceProfile,
       uploadAvatar,
       removeAvatar,
