@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { api, getToken, setToken } from "../lib/api";
+import { api, clearLegacyToken, setSessionExpiredHandler } from "../lib/api";
 
 const AuthContext = createContext(null);
 
@@ -24,11 +24,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false;
+    clearLegacyToken();
     async function restore() {
-      if (!getToken()) {
-        setInitializing(false);
-        return;
-      }
       try {
         const { user: me } = await api.me();
         if (!cancelled) {
@@ -36,8 +33,7 @@ export function AuthProvider({ children }) {
           refreshBilling();
         }
       } catch {
-        // token invalid/expired — clear it
-        setToken(null);
+        // No valid session cookie (or it couldn't be refreshed) — stay logged out.
       } finally {
         if (!cancelled) setInitializing(false);
       }
@@ -49,16 +45,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (identifier, password) => {
-    const { token, user: u } = await api.login(identifier, password);
-    setToken(token);
+    const { user: u } = await api.login(identifier, password);
     setUser(u);
     refreshBilling();
     return u;
   };
 
   const register = async (name, email, password) => {
-    const { token, user: u } = await api.register({ name, email, password });
-    setToken(token);
+    const { user: u } = await api.register({ name, email, password });
     setUser(u);
     refreshBilling();
     return u;
@@ -94,10 +88,20 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    setToken(null);
+    // The refresh cookie is httpOnly, so only the server can clear and revoke it.
+    api.logout().catch(() => {});
     setUser(null);
     setBilling(null);
   };
+
+  useEffect(() => {
+    // The API reports a session that can no longer be refreshed (expired/revoked).
+    setSessionExpiredHandler(() => {
+      setUser(null);
+      setBilling(null);
+    });
+    return () => setSessionExpiredHandler(null);
+  }, []);
 
   const hasModule = (moduleKey) => (billing?.moduleKeys || []).includes(moduleKey);
 

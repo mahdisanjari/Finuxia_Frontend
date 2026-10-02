@@ -1,25 +1,70 @@
 /**
  * Thin REST client for the Finuxia backend.
- * Base URL comes from VITE_API_URL (see .env); the JWT is attached automatically.
+ * Base URL comes from VITE_API_URL (see .env). Auth is carried by httpOnly
+ * cookies the server sets (JavaScript never sees the tokens); every request
+ * sends them with `credentials: "include"`, and state-changing requests echo the
+ * readable CSRF cookie in `X-CSRF-Token`.
  */
 const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:4000").replace(/\/$/, "");
-const TOKEN_KEY = "advisorpilot.token";
+const CSRF_COOKIE = "fx_csrf";
+const LEGACY_TOKEN_KEY = "advisorpilot.token";
 
-export function getToken() {
+// Older versions kept the JWT in localStorage (readable by any script); drop it.
+export function clearLegacyToken() {
   try {
-    return localStorage.getItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function setToken(token) {
-  try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
   } catch {
     // ignore storage errors
   }
+}
+
+function readCookie(name) {
+  const match = document.cookie.split("; ").find((c) => c.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
+}
+
+let onSessionExpired = () => {};
+export function setSessionExpiredHandler(fn) {
+  onSessionExpired = fn || (() => {});
+}
+
+// One refresh at a time — concurrent 401s all wait on the same request.
+let refreshing = null;
+function refreshSession() {
+  if (!refreshing) {
+    refreshing = fetch(`${BASE_URL}/api/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "X-CSRF-Token": readCookie(CSRF_COOKIE) },
+    })
+      .then((r) => r.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshing = null;
+      });
+  }
+  return refreshing;
+}
+
+const NO_REFRESH_PATHS = ["/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout"];
+
+// fetch + cookies + CSRF header, and one silent refresh-and-retry on a 401.
+async function authedFetch(path, init = {}) {
+  const send = () => {
+    const method = (init.method || "GET").toUpperCase();
+    const headers = { ...(init.headers || {}) };
+    if (method !== "GET" && method !== "HEAD") {
+      const csrf = readCookie(CSRF_COOKIE);
+      if (csrf) headers["X-CSRF-Token"] = csrf;
+    }
+    return fetch(`${BASE_URL}${path}`, { ...init, headers, credentials: "include" });
+  };
+  let res = await send();
+  if (res.status === 401 && !NO_REFRESH_PATHS.some((p) => path.startsWith(p))) {
+    if (await refreshSession()) res = await send();
+    else onSessionExpired();
+  }
+  return res;
 }
 
 export class ApiError extends Error {
@@ -55,16 +100,12 @@ function firstErrorMessage(data) {
   return null;
 }
 
-async function request(path, { method = "GET", body, auth = true } = {}) {
+async function request(path, { method = "GET", body } = {}) {
   const headers = { "Content-Type": "application/json" };
-  if (auth) {
-    const token = getToken();
-    if (token) headers.Authorization = `Bearer ${token}`;
-  }
 
   let res;
   try {
-    res = await fetch(`${BASE_URL}${path}`, {
+    res = await authedFetch(path, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -99,13 +140,9 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
 // Multipart (file upload) POST — no Content-Type header, so the browser sets
 // the correct multipart boundary itself.
 async function requestMultipart(path, formData) {
-  const headers = {};
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-
   let res;
   try {
-    res = await fetch(`${BASE_URL}${path}`, { method: "POST", headers, body: formData });
+    res = await authedFetch(path, { method: "POST", body: formData });
   } catch {
     throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
   }
@@ -132,13 +169,9 @@ async function requestMultipart(path, formData) {
 // Authenticated file download — fetches the bytes with the JWT header (a
 // plain <a href> can't carry it), then triggers the browser's save dialog.
 async function downloadFile(path, fallbackName) {
-  const headers = {};
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-
   let res;
   try {
-    res = await fetch(`${BASE_URL}${path}`, { headers });
+    res = await authedFetch(path);
   } catch {
     throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
   }
@@ -171,12 +204,9 @@ async function downloadFile(path, fallbackName) {
 // Authenticated fetch of a file as a blob object URL — for inline previews
 // (an <iframe> can't send the JWT header, so it can't load the URL itself).
 async function fetchBlobUrl(path) {
-  const headers = {};
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
   let res;
   try {
-    res = await fetch(`${BASE_URL}${path}`, { headers });
+    res = await authedFetch(path);
   } catch {
     throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
   }
@@ -187,11 +217,21 @@ async function fetchBlobUrl(path) {
 // Multipart POST with upload-progress reporting — fetch() has no upload
 // progress event, so this one path uses XMLHttpRequest instead.
 function requestMultipartXHR(path, formData, onProgress) {
+  const attempt = () => sendMultipartXHR(path, formData, onProgress);
+  return attempt().catch(async (err) => {
+    if (err.status === 401 && (await refreshSession())) return attempt();
+    if (err.status === 401) onSessionExpired();
+    throw err;
+  });
+}
+
+function sendMultipartXHR(path, formData, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${BASE_URL}${path}`);
-    const token = getToken();
-    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.withCredentials = true;
+    const csrf = readCookie(CSRF_COOKIE);
+    if (csrf) xhr.setRequestHeader("X-CSRF-Token", csrf);
     if (onProgress) {
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
@@ -220,13 +260,9 @@ function requestMultipartXHR(path, formData, onProgress) {
 // built server-side from uploaded documents. Combines requestMultipart's
 // error handling with downloadFile's blob-save tail.
 async function requestMultipartDownload(path, formData, fallbackName) {
-  const headers = {};
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-
   let res;
   try {
-    res = await fetch(`${BASE_URL}${path}`, { method: "POST", headers, body: formData });
+    res = await authedFetch(path, { method: "POST", body: formData });
   } catch {
     throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
   }
@@ -258,9 +294,10 @@ async function requestMultipartDownload(path, formData, fallbackName) {
 
 export const api = {
   // auth
-  register: (payload) => request("/api/auth/register", { method: "POST", body: payload, auth: false }),
+  register: (payload) => request("/api/auth/register", { method: "POST", body: payload }),
   login: (identifier, password) =>
-    request("/api/auth/login", { method: "POST", body: { identifier, password }, auth: false }),
+    request("/api/auth/login", { method: "POST", body: { identifier, password } }),
+  logout: () => request("/api/auth/logout", { method: "POST" }),
   me: () => request("/api/auth/me"),
   updateMe: (patch) => request("/api/auth/me", { method: "PATCH", body: patch }),
   updateComplianceProfile: (patch) => request("/api/auth/me/compliance-profile", { method: "PATCH", body: patch }),
@@ -272,7 +309,7 @@ export const api = {
   deleteAvatar: () => request("/api/auth/me/avatar", { method: "DELETE" }),
   avatarUrl: (userId) => `${BASE_URL}/api/auth/avatar/${userId}`,
   forgotPassword: (email) =>
-    request("/api/auth/forgot-password", { method: "POST", body: { email }, auth: false }),
+    request("/api/auth/forgot-password", { method: "POST", body: { email } }),
 
   // clients (owner-scoped collection sync)
   getClients: () => request("/api/clients"),
@@ -461,7 +498,7 @@ export const api = {
       { auth: false }
     ),
   requestBooking: (slug, payload) =>
-    request(`/api/booking/public/${encodeURIComponent(slug)}/request`, { method: "POST", body: payload, auth: false }),
+    request(`/api/booking/public/${encodeURIComponent(slug)}/request`, { method: "POST", body: payload }),
 };
 
 // The full shareable link for an advisor's booking page.
