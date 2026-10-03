@@ -18,8 +18,8 @@ export default function ResetPassword() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (password.length < 10) {
-      setError("Password must be at least 10 characters");
+    if (password.length < 12) {
+      setError("Password must be at least 12 characters");
       return;
     }
     if (password !== confirm) {
@@ -68,7 +68,7 @@ export default function ResetPassword() {
   return (
     <AuthCard
       title="Choose a new password"
-      subtitle="Use at least 10 characters."
+      subtitle="Use at least 12 characters."
       footer={
         <Link to="/login" className="font-semibold text-gold-dark hover:underline">
           Back to log in
