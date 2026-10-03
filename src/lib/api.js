@@ -87,11 +87,32 @@ async function authedFetch(path, init = {}) {
   return res;
 }
 
+// Turns a Retry-After header (seconds) into "about 12 minutes" for the "too many requests" message.
+function waitPhrase(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "a little while";
+  if (seconds < 60) return `${Math.ceil(seconds)} second${Math.ceil(seconds) === 1 ? "" : "s"}`;
+  if (seconds < 3600) {
+    const m = Math.ceil(seconds / 60);
+    return `about ${m} minute${m === 1 ? "" : "s"}`;
+  }
+  const h = Math.ceil(seconds / 3600);
+  return `about ${h} hour${h === 1 ? "" : "s"}`;
+}
+
+// A 429 from the API (rate limit, e.g. the per-user AI limit) becomes a plain-language message
+// instead of the raw "Request was throttled. Expected available in N seconds."
+export function throttledMessage(retryAfterHeader) {
+  const seconds = parseInt(retryAfterHeader, 10);
+  return `Too many requests — please try again in ${waitPhrase(seconds)}.`;
+}
+
 export class ApiError extends Error {
-  constructor(message, { status, data } = {}) {
+  constructor(message, { status, data, retryAfter } = {}) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    // Seconds until the next attempt is allowed (from Retry-After), for 429 responses.
+    this.retryAfter = retryAfter;
     // The parsed error body — e.g. a 409 on a client edit carries `client`, the server's latest copy.
     this.data = data;
   }
@@ -149,6 +170,10 @@ async function request(path, { method = "GET", body } = {}) {
   }
 
   if (!res.ok) {
+    if (res.status === 429) {
+      const header = res.headers.get("Retry-After");
+      throw new ApiError(throttledMessage(header), { status: 429, data, retryAfter: parseInt(header, 10) || undefined });
+    }
     const message =
       data?.error ||
       firstErrorMessage(data) ||
@@ -179,6 +204,10 @@ async function requestMultipart(path, formData) {
     }
   }
   if (!res.ok) {
+    if (res.status === 429) {
+      const header = res.headers.get("Retry-After");
+      throw new ApiError(throttledMessage(header), { status: 429, retryAfter: parseInt(header, 10) || undefined });
+    }
     const message =
       data?.error ||
       firstErrorMessage(data) ||
@@ -273,6 +302,9 @@ function sendMultipartXHR(path, formData, onProgress) {
       }
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(data);
+      } else if (xhr.status === 429) {
+        const header = xhr.getResponseHeader("Retry-After");
+        reject(new ApiError(throttledMessage(header), { status: 429, retryAfter: parseInt(header, 10) || undefined }));
       } else {
         const message = data?.error || firstErrorMessage(data) || `Request failed (${xhr.status})`;
         reject(new ApiError(String(message), { status: xhr.status }));
