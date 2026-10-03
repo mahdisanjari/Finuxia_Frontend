@@ -340,6 +340,8 @@ export const api = {
     request("/api/auth/reset-password", { method: "POST", body: { uid, token, password } }),
   changePassword: (currentPassword, newPassword) =>
     request("/api/auth/change-password", { method: "POST", body: { currentPassword, newPassword } }),
+  verifyEmail: (uid, token) => request("/api/auth/verify-email", { method: "POST", body: { uid, token } }),
+  resendVerification: () => request("/api/auth/resend-verification", { method: "POST" }),
 
   // clients (owner-scoped collection sync)
   getClients: () => request("/api/clients"),

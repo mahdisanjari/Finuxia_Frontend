@@ -12,6 +12,7 @@ import AddClientModal from "./AddClientModal";
 import ReconnectModal from "./ReconnectModal";
 import ConnectNudgeModal from "./ConnectNudgeModal";
 import Footer from "./Footer";
+import VerifyEmailNotice from "./VerifyEmailNotice";
 
 // The everyday, single-click items — kept short on purpose so the bar
 // doesn't get crowded. Everything else lives in one of the dropdowns below.
@@ -65,6 +66,13 @@ const NAV_MENUS = [
 export default function Layout() {
   const [modalOpen, setModalOpen] = useState(false);
   const { user } = useAuth();
+
+  // Email gate: an unverified account can sign in but sees only the "confirm your email"
+  // screen — no trial has started and AI credit can't be spent until the link is used.
+  // (Strict false: an older API that doesn't report the field must not lock anyone out.)
+  if (user && user.emailVerified === false) {
+    return <VerifyEmailNotice />;
+  }
 
   // Trial/subscription gate: once access has lapsed, everything routes to the
   // subscribe page (which lives outside this Layout, so no redirect loop).

@@ -58,6 +58,16 @@ export function AuthProvider({ children }) {
     return u;
   };
 
+  // Re-reads the account (e.g. after the email link was used in another tab or browser).
+  const refreshUser = async () => {
+    const { user: u } = await api.me();
+    setUser(u);
+    refreshBilling();
+    return u;
+  };
+
+  const resendVerification = () => api.resendVerification();
+
   const requestPasswordReset = async (email) => {
     await api.forgotPassword(email);
     return true;
@@ -120,6 +130,8 @@ export function AuthProvider({ children }) {
       initializing,
       billing,
       refreshBilling,
+      refreshUser,
+      resendVerification,
       hasModule,
       login,
       register,

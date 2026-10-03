@@ -28,7 +28,7 @@ export default function Register() {
     setSubmitting(true);
     try {
       await register(form.name, form.email, form.password);
-      addToast(`Welcome to Finuxia, ${form.name.split(" ")[0]}!`);
+      addToast(`Welcome to Finuxia, ${form.name.split(" ")[0]}! Check your email to confirm your address.`);
       navigate("/dashboard", { replace: true, state: { justRegistered: true } });
     } catch (err) {
       setError(err.message);
