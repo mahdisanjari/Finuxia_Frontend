@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Presentation as PresentationIcon, Info, Download, FileX, ChevronDown } from "lucide-react";
-import { api, presentationPdfUrl, presentationVariantPdfUrl } from "../lib/api";
+import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
 
 export default function Presentations() {
@@ -42,13 +42,18 @@ export default function Presentations() {
     });
   };
 
-  const handleDownload = (title, hasPdf, url) => {
+  // The PDFs are plan-gated, so they are fetched with the session (and silently
+  // refreshed if it expired) rather than opened by URL.
+  const handleDownload = async (title, hasPdf, download) => {
     if (!hasPdf) {
       addToast(`"${title}" PDF hasn't been uploaded yet.`);
       return;
     }
-    // Opening the URL triggers the download (Content-Disposition: attachment).
-    window.open(url, "_blank", "noopener");
+    try {
+      await download();
+    } catch (err) {
+      addToast(err.message || `Could not download "${title}"`);
+    }
   };
 
   return (
@@ -107,7 +112,9 @@ export default function Presentations() {
                   ) : (
                     <DownloadButton
                       hasPdf={item.hasPdf}
-                      onClick={() => handleDownload(item.title, item.hasPdf, presentationPdfUrl(item.slug))}
+                      onClick={() =>
+                        handleDownload(item.title, item.hasPdf, () => api.downloadPresentationPdf(item.slug, `${item.title}.pdf`))
+                      }
                     />
                   )}
                 </div>
@@ -126,10 +133,8 @@ export default function Presentations() {
                               compact
                               hasPdf={variant.hasPdf}
                               onClick={() =>
-                                handleDownload(
-                                  `${item.title} — ${variant.label}`,
-                                  variant.hasPdf,
-                                  presentationVariantPdfUrl(item.slug, variant.id)
+                                handleDownload(`${item.title} — ${variant.label}`, variant.hasPdf, () =>
+                                  api.downloadPresentationVariantPdf(item.slug, variant.id, `${item.title} - ${variant.label}.pdf`)
                                 )
                               }
                             />

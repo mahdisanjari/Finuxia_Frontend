@@ -357,7 +357,12 @@ export const api = {
   getGuides: () => request("/api/guides", { auth: false }),
 
   // advisor presentations (metadata; PDFs uploaded via admin)
-  getPresentations: () => request("/api/presentations", { auth: false }),
+  getPresentations: () => request("/api/presentations"),
+  // Authenticated downloads (cookie + silent refresh); the PDFs are part of a paid plan.
+  downloadPresentationPdf: (slug, fallbackName) =>
+    downloadFile(`/api/presentations/${encodeURIComponent(slug)}/pdf`, fallbackName),
+  downloadPresentationVariantPdf: (slug, variantId, fallbackName) =>
+    downloadFile(`/api/presentations/${encodeURIComponent(slug)}/variants/${encodeURIComponent(variantId)}/pdf`, fallbackName),
 
   // support tickets (bug reports / feature requests) — own tickets only;
   // status changes and admin replies happen in the Django admin panel.
@@ -539,16 +544,6 @@ export const api = {
 // The full shareable link for an advisor's booking page.
 export function bookingPublicUrl(slug) {
   return `${window.location.origin}/book/${encodeURIComponent(slug)}`;
-}
-
-// Direct download URL for a presentation's own PDF (opened in the browser).
-export function presentationPdfUrl(slug) {
-  return `${BASE_URL}/api/presentations/${encodeURIComponent(slug)}/pdf`;
-}
-
-// Direct download URL for one of a presentation's variant (sub-item) PDFs.
-export function presentationVariantPdfUrl(slug, variantId) {
-  return `${BASE_URL}/api/presentations/${encodeURIComponent(slug)}/variants/${encodeURIComponent(variantId)}/pdf`;
 }
 
 export { BASE_URL };
