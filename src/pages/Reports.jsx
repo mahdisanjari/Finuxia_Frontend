@@ -21,6 +21,7 @@ import { matchClientForEvent, guessClientNameFromEvent } from "../services/meeti
 import { toCsv, downloadCsv } from "../lib/csv";
 import { PIPELINE_STAGES, STAGE_INDEX } from "../lib/pipeline";
 import { openPrintableReport } from "../lib/pdfReport";
+import { buildFunnelWorkbook, downloadWorkbook } from "../lib/spreadsheet";
 
 function firstOfMonth(offset = 0) {
   const d = new Date();
@@ -210,7 +211,6 @@ export default function Reports() {
   // uses), as a styled Excel checklist.
   const handleExportFunnel = async () => {
     try {
-      const XLSX = await import("xlsx-js-style");
       const headerRow = ["#", "Name", "Priority", ...PIPELINE_STAGES.map((s) => s.short)];
       const dataRows = rangeClients.map((c, i) => {
         const currentIdx = STAGE_INDEX[c.currentStage] ?? 0;
@@ -222,37 +222,13 @@ export default function Reports() {
         ];
       });
 
-      const ws = XLSX.utils.aoa_to_sheet([
-        [`Finuxia Funnel — ${rangeClients.length} clients — ${startDate} to ${endDate}`],
+      const workbook = await buildFunnelWorkbook({
+        banner: `Finuxia Funnel — ${rangeClients.length} clients — ${startDate} to ${endDate}`,
         headerRow,
-        ...dataRows,
-      ]);
-
-      const lastCol = headerRow.length - 1;
-      ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } }];
-      ws["!cols"] = [{ wch: 5 }, { wch: 24 }, { wch: 10 }, ...PIPELINE_STAGES.map(() => ({ wch: 12 }))];
-
-      const bannerStyle = {
-        fill: { patternType: "solid", fgColor: { rgb: "FF0F1C2E" } },
-        font: { bold: true, color: { rgb: "FFFFFFFF" }, sz: 13 },
-        alignment: { horizontal: "center", vertical: "center" },
-      };
-      const headerStyle = {
-        fill: { patternType: "solid", fgColor: { rgb: "FFC9A84C" } },
-        font: { bold: true, color: { rgb: "FF0F1C2E" } },
-        alignment: { horizontal: "center" },
-      };
-      for (let c = 0; c <= lastCol; c++) {
-        const banner = ws[XLSX.utils.encode_cell({ r: 0, c })];
-        if (banner) banner.s = bannerStyle;
-        else ws[XLSX.utils.encode_cell({ r: 0, c })] = { t: "s", v: "", s: bannerStyle };
-        const head = ws[XLSX.utils.encode_cell({ r: 1, c })];
-        if (head) head.s = headerStyle;
-      }
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Funnel");
-      XLSX.writeFile(wb, `advisorpilot-funnel-${startDate}_to_${endDate}.xlsx`);
+        dataRows,
+        columnWidths: [5, 24, 10, ...PIPELINE_STAGES.map(() => 12)],
+      });
+      await downloadWorkbook(workbook, `advisorpilot-funnel-${startDate}_to_${endDate}.xlsx`);
       addToast("Funnel exported");
     } catch (err) {
       addToast(err.message || "Could not export the funnel");

@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { calcNextFollowUp, todayISO, addDays, toISODate } from "../lib/followUp";
-import { getNextStageId, PIPELINE_STAGES, FIRST_STAGE_ID } from "../lib/pipeline";
+import { calcNextFollowUp, todayISO, addDays } from "../lib/followUp";
+import { getNextStageId, FIRST_STAGE_ID } from "../lib/pipeline";
 import { api } from "../lib/api";
+import { mapImportRows } from "../lib/clientImport";
 import { useAuth } from "./AuthContext";
 import { useToast } from "./ToastContext";
 
@@ -507,55 +508,11 @@ export function ClientsProvider({ children }) {
   };
 
   const importClients = async (rows) => {
-    const results = { successCount: 0, failedRows: [] };
-    const created = [];
-
-    rows.forEach((row, idx) => {
-      const name = (row.name || row.Name || "").trim();
-      if (!name) {
-        results.failedRows.push({ row: idx + 1, error: "Missing Name" });
-        return;
-      }
-      // Skip the template's sample row (labelled "SAMPLE … delete this row")
-      // so it never becomes a real client. Not counted as a failure.
-      if (/sample/i.test(name) && /delete/i.test(name)) return;
-
-      const parts = name.split(/\s+/);
-      const first = parts[0];
-      const last = parts.slice(1).join(" ");
-
-      // Dates: parse Excel Date objects / serials / strings into local ISO.
-      const followUpDate = toISODate(row.nextFollowUp ?? row["Next Follow-up"]);
-      const lastContactDate = toISODate(row.lastContact ?? row["Last Contact"]);
-
-      const rawStage = (row.stage || row.Stage || "").trim().toLowerCase();
-      const matchedStage =
-        PIPELINE_STAGES.find((s) => s.label.toLowerCase() === rawStage || s.id === rawStage)?.id || FIRST_STAGE_ID;
-
-      created.push({
-        first,
-        last,
-        phone: row.phone || row.Phone || "",
-        email: row.email || row.Email || "",
-        telegram: row.telegram || row.Telegram || "",
-        referredBy: row.referredBy || row["Referred By"] || "",
-        preferredContact: "phone",
-        priority: "Medium",
-        color: AV_COLORS[(clients.length + idx) % AV_COLORS.length],
-        joined: todayISO(),
-        followUpDate,
-        nextFollowUp: followUpDate ? calcNextFollowUp(followUpDate) : "TBD",
-        lastContactDate,
-        lastContact: lastContactDate ? `Last contact — ${lastContactDate}` : "Not yet contacted",
-        interests: [],
-        currentStage: matchedStage,
-        stages: { [matchedStage]: { status: "pending", data: {}, files: [] } },
-        meeting: null,
-        files: [],
-        notes: [],
-      });
-      results.successCount += 1;
+    const { created, failedRows, successCount } = mapImportRows(rows, {
+      colors: AV_COLORS,
+      colorOffset: clients.length,
     });
+    const results = { successCount, failedRows };
 
     if (created.length) {
       const saved = normalize(await api.importClients(created));
