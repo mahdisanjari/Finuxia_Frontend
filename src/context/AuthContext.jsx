@@ -11,13 +11,19 @@ export function AuthProvider({ children }) {
   // { plan, status, moduleKeys, currentPeriodEnd } — which modules this
   // account's plan unlocks. null while unknown (still loading, or logged out).
   const [billing, setBilling] = useState(null);
+  // "loading" | "ready" | "error": lets a page that needs the plan tell "still fetching" from "could not fetch"
+  // (and offer a retry) instead of showing nothing forever.
+  const [billingStatus, setBillingStatus] = useState("loading");
 
   const refreshBilling = async () => {
+    setBillingStatus((s) => (s === "ready" ? s : "loading"));
     try {
       const status = await api.getMyBillingStatus();
       setBilling(status);
+      setBillingStatus("ready");
       return status;
     } catch {
+      setBillingStatus((s) => (s === "ready" ? s : "error")); // a refresh that fails keeps the plan we already know
       return null;
     }
   };
@@ -100,6 +106,7 @@ export function AuthProvider({ children }) {
     clearLocalData();
     setUser(null);
     setBilling(null);
+    setBillingStatus("loading");
   };
 
   useEffect(() => {
@@ -108,6 +115,7 @@ export function AuthProvider({ children }) {
       clearLocalData();
       setUser(null);
       setBilling(null);
+      setBillingStatus("loading");
     });
     return () => setSessionExpiredHandler(null);
   }, []);
@@ -119,6 +127,7 @@ export function AuthProvider({ children }) {
       user,
       initializing,
       billing,
+      billingStatus,
       refreshBilling,
       hasModule,
       login,
@@ -131,7 +140,7 @@ export function AuthProvider({ children }) {
       uploadAvatar,
       removeAvatar,
     }),
-    [user, initializing, billing]
+    [user, initializing, billing, billingStatus]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

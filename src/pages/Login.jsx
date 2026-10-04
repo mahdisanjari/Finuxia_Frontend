@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthCard, { AuthField, authInputClass } from "../components/AuthCard";
 import { useAuth } from "../context/AuthContext";
+import { destinationAfterLogin } from "../lib/redirects";
 
 export default function Login() {
   const { login } = useAuth();
@@ -18,7 +19,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(identifier, password);
-      const redirectTo = location.state?.from?.pathname || "/dashboard";
+      const redirectTo = destinationAfterLogin(location);
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.message);
