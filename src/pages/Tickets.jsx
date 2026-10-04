@@ -92,20 +92,14 @@ export default function Tickets() {
                     )}
                   </p>
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusMeta.badge}`}>
-                  {statusMeta.label}
-                </span>
+                <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusMeta.badge}`}>{statusMeta.label}</span>
               </button>
             );
           })}
         </div>
       )}
 
-      <NewTicketModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onCreated={(ticket) => navigate(`/tickets/${ticket.id}`)}
-      />
+      <NewTicketModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={(ticket) => navigate(`/tickets/${ticket.id}`)} />
     </div>
   );
 }

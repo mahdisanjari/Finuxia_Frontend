@@ -81,64 +81,63 @@ export default function OpenDriveFolderButton({ clientId, clientName }) {
 
       {prompt && (
         <Modal onClose={() => setPrompt(null)} panelClassName="max-w-sm rounded-2xl p-6">
-            <div className="mb-4 flex items-start justify-between">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy/5 text-navy">
-                <HardDrive size={18} />
-              </div>
-              <button
-                onClick={() => setPrompt(null)}
-                className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-navy"
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
+          <div className="mb-4 flex items-start justify-between">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy/5 text-navy">
+              <HardDrive size={18} />
             </div>
+            <button
+              onClick={() => setPrompt(null)}
+              className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-navy"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+          </div>
 
-            {prompt === "connect" ? (
-              <>
-                <ModalTitle className="text-base font-semibold text-navy">Connect Google Drive</ModalTitle>
-                <p className="mt-1.5 text-sm text-slate-500">
-                  Connect your Google Drive to store and open {clientName}'s files folder. You'll be sent to Google
-                  and brought right back here.
-                </p>
-                <div className="mt-5 flex justify-end gap-3">
-                  <button
-                    onClick={() => setPrompt(null)}
-                    className="rounded-lg px-4 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConnect}
-                    disabled={connecting}
-                    className="flex items-center gap-1.5 rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light disabled:opacity-60"
-                  >
-                    <Link2 size={14} />
-                    {connecting ? "Redirecting..." : "Connect Google Drive"}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 className="flex items-center gap-1.5 text-base font-semibold text-navy">
-                  <AlertTriangle size={16} className="text-av-red" />
-                  Google Drive isn't set up yet
-                </h2>
-                <p className="mt-1.5 text-sm text-slate-500">
-                  This app's Google Drive integration hasn't been configured on the server. Ask an admin to set it
-                  up, then try again.
-                </p>
-                <div className="mt-5 flex justify-end">
-                  <button
-                    onClick={() => setPrompt(null)}
-                    className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light"
-                  >
-                    Got it
-                  </button>
-                </div>
-              </>
-            )}
-          </Modal>
+          {prompt === "connect" ? (
+            <>
+              <ModalTitle className="text-base font-semibold text-navy">Connect Google Drive</ModalTitle>
+              <p className="mt-1.5 text-sm text-slate-500">
+                Connect your Google Drive to store and open {clientName}'s files folder. You'll be sent to Google and brought right back
+                here.
+              </p>
+              <div className="mt-5 flex justify-end gap-3">
+                <button
+                  onClick={() => setPrompt(null)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="flex items-center gap-1.5 rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light disabled:opacity-60"
+                >
+                  <Link2 size={14} />
+                  {connecting ? "Redirecting..." : "Connect Google Drive"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="flex items-center gap-1.5 text-base font-semibold text-navy">
+                <AlertTriangle size={16} className="text-av-red" />
+                Google Drive isn't set up yet
+              </h2>
+              <p className="mt-1.5 text-sm text-slate-500">
+                This app's Google Drive integration hasn't been configured on the server. Ask an admin to set it up, then try again.
+              </p>
+              <div className="mt-5 flex justify-end">
+                <button
+                  onClick={() => setPrompt(null)}
+                  className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light"
+                >
+                  Got it
+                </button>
+              </div>
+            </>
+          )}
+        </Modal>
       )}
     </>
   );

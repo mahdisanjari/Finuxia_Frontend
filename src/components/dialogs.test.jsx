@@ -18,13 +18,21 @@ const client = { id: "c_1", first: "Ada", last: "Lovelace", stages: {}, notes: [
 // Every dialog in the app, rendered the way the app renders it. The eleven the story names, plus whatever else opens one.
 const DIALOGS = [
   ["Add client", (onClose) => <AddClientModal open onClose={onClose} />, /add client/i],
-  ["Meeting", (onClose) => <MeetingModal client={client} stage={{ id: "meeting", label: "Book Meeting" }} onClose={onClose} />, /book meeting/i],
+  [
+    "Meeting",
+    (onClose) => <MeetingModal client={client} stage={{ id: "meeting", label: "Book Meeting" }} onClose={onClose} />,
+    /book meeting/i,
+  ],
   ["Submit document", (onClose) => <SubmitDocumentModal onClose={onClose} onSubmitted={() => {}} />, /submit a document/i],
   ["Reminder", (onClose) => <ReminderModal onSubmit={() => {}} onClose={onClose} />, /reminder/i],
   ["Group", (onClose) => <GroupModal onClose={onClose} />, /new group/i],
   ["Follow-up rule", (onClose) => <FollowUpRuleModal client={client} onClose={onClose} />, /follow/i],
   ["New ticket", (onClose) => <NewTicketModal open onClose={onClose} onCreated={() => {}} />, /new ticket/i],
-  ["Reschedule", (onClose) => <RescheduleModal title="Reschedule follow-up" currentDate="2030-01-01" onSave={() => {}} onClose={onClose} />, /reschedule follow-up/i],
+  [
+    "Reschedule",
+    (onClose) => <RescheduleModal title="Reschedule follow-up" currentDate="2030-01-01" onSave={() => {}} onClose={onClose} />,
+    /reschedule follow-up/i,
+  ],
   ["Booking link", (onClose) => <BookingLinkModal onSave={() => {}} onClose={onClose} />, /new booking link/i],
 ];
 
@@ -64,10 +72,26 @@ describe("the two nudges that need an answer", () => {
 
 describe("no hand-rolled dialogs are left", () => {
   const read = (f) => readFileSync(`src/${f}`, "utf8");
-  const files = ["components", "pages"].flatMap((dir) => readdirSync(`src/${dir}`).filter((n) => /\.jsx$/.test(n) && !/\.test\./.test(n)).map((n) => `${dir}/${n}`));
+  const files = ["components", "pages"].flatMap((dir) =>
+    readdirSync(`src/${dir}`)
+      .filter((n) => /\.jsx$/.test(n) && !/\.test\./.test(n))
+      .map((n) => `${dir}/${n}`)
+  );
 
   it("the eleven modals use the shared primitive and carry no backdrop markup of their own", () => {
-    for (const name of ["AddClientModal", "MeetingModal", "SubmitDocumentModal", "ReminderModal", "GroupModal", "FollowUpRuleModal", "NewTicketModal", "ConnectNudgeModal", "ReconnectModal", "RescheduleModal", "BookingLinkModal"]) {
+    for (const name of [
+      "AddClientModal",
+      "MeetingModal",
+      "SubmitDocumentModal",
+      "ReminderModal",
+      "GroupModal",
+      "FollowUpRuleModal",
+      "NewTicketModal",
+      "ConnectNudgeModal",
+      "ReconnectModal",
+      "RescheduleModal",
+      "BookingLinkModal",
+    ]) {
       const code = read(`components/${name}.jsx`);
       expect(code, name).toContain('from "./Modal"');
       expect(code, name).toContain("<Modal");

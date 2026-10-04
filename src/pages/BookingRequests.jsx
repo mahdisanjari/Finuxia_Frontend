@@ -139,8 +139,7 @@ export default function BookingRequests() {
       ) : (
         <div className="flex items-start gap-2 rounded-xl border border-dashed border-av-amber/40 bg-av-amber/5 px-4 py-3 text-sm text-av-amber">
           <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-          Connect Google Calendar on your Profile page to skip the approval step entirely and add meetings
-          automatically.
+          Connect Google Calendar on your Profile page to skip the approval step entirely and add meetings automatically.
         </div>
       )}
 
@@ -228,9 +227,7 @@ function RequestCard({ req, busy, onApprove, onCancel, onReschedule }) {
               </>
             )}
           </p>
-          {req.guestEmails?.length > 0 && (
-            <p className="mt-1 text-xs text-slate-400">Guests: {req.guestEmails.join(", ")}</p>
-          )}
+          {req.guestEmails?.length > 0 && <p className="mt-1 text-xs text-slate-400">Guests: {req.guestEmails.join(", ")}</p>}
           {req.answers?.length > 0 && (
             <div className="mt-1.5 flex flex-col gap-0.5">
               {req.answers.map((a) => (
@@ -286,30 +283,30 @@ function RescheduleModal({ req, onClose, onConfirm }) {
 
   return (
     <Modal onClose={onClose} panelClassName="max-w-sm rounded-2xl p-6">
-        <ModalTitle className="mb-4 text-lg font-semibold text-navy">Reschedule {req.clientName}</ModalTitle>
-        <div className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Date</span>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-navy outline-none focus:border-gold focus:ring-2 focus:ring-gold/30"
-            />
-          </label>
-          <TimeInput label="Time" value={time} onChange={setTime} />
-          <div className="mt-1 flex justify-end gap-3">
-            <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100">
-              Cancel
-            </button>
-            <button
-              onClick={() => onConfirm(date, time)}
-              className="rounded-lg bg-navy px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light"
-            >
-              Save
-            </button>
-          </div>
+      <ModalTitle className="mb-4 text-lg font-semibold text-navy">Reschedule {req.clientName}</ModalTitle>
+      <div className="flex flex-col gap-4">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Date</span>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-navy outline-none focus:border-gold focus:ring-2 focus:ring-gold/30"
+          />
+        </label>
+        <TimeInput label="Time" value={time} onChange={setTime} />
+        <div className="mt-1 flex justify-end gap-3">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100">
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(date, time)}
+            className="rounded-lg bg-navy px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light"
+          >
+            Save
+          </button>
         </div>
-      </Modal>
+      </div>
+    </Modal>
   );
 }

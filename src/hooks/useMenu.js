@@ -24,12 +24,15 @@ export default function useMenu({ align = "left" } = {}) {
     if (returnFocus) triggerRef.current?.focus();
   }, []);
 
-  const openMenu = useCallback((which = "first") => {
-    const r = triggerRef.current?.getBoundingClientRect();
-    if (r) setPos(align === "right" ? { top: r.bottom + 6, right: window.innerWidth - r.right } : { top: r.bottom + 6, left: r.left });
-    focusOnOpen.current = which;
-    setOpen(true);
-  }, [align]);
+  const openMenu = useCallback(
+    (which = "first") => {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (r) setPos(align === "right" ? { top: r.bottom + 6, right: window.innerWidth - r.right } : { top: r.bottom + 6, left: r.left });
+      focusOnOpen.current = which;
+      setOpen(true);
+    },
+    [align]
+  );
 
   useEffect(() => {
     if (!open) return undefined;

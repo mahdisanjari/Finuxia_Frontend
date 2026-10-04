@@ -143,7 +143,11 @@ describe("Modal", () => {
       render(<Harness onClosed={onClosed} />);
       const dialog = await open();
       const overlay = dialog.parentElement;
-      await userEvent.pointer([{ keys: "[MouseLeft>]", target: screen.getByLabelText("First field") }, { target: overlay }, { keys: "[/MouseLeft]" }]);
+      await userEvent.pointer([
+        { keys: "[MouseLeft>]", target: screen.getByLabelText("First field") },
+        { target: overlay },
+        { keys: "[/MouseLeft]" },
+      ]);
       expect(onClosed).not.toHaveBeenCalled();
     });
 
@@ -170,8 +174,16 @@ describe("Modal", () => {
 
     it("restores whatever overflow the page had, even with two dialogs stacked", () => {
       document.body.style.overflow = "scroll";
-      const a = render(<Modal onClose={() => {}} ariaLabel="A"><button>a</button></Modal>);
-      const b = render(<Modal onClose={() => {}} ariaLabel="B"><button>b</button></Modal>);
+      const a = render(
+        <Modal onClose={() => {}} ariaLabel="A">
+          <button>a</button>
+        </Modal>
+      );
+      const b = render(
+        <Modal onClose={() => {}} ariaLabel="B">
+          <button>b</button>
+        </Modal>
+      );
       expect(document.body.style.overflow).toBe("hidden");
       b.unmount();
       expect(document.body.style.overflow).toBe("hidden"); // still one open

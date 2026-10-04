@@ -42,7 +42,8 @@ const FOCUSABLE = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(",");
 
-const focusableIn = (root) => [...root.querySelectorAll(FOCUSABLE)].filter((el) => !el.hasAttribute("hidden") && el.getAttribute("aria-hidden") !== "true");
+const focusableIn = (root) =>
+  [...root.querySelectorAll(FOCUSABLE)].filter((el) => !el.hasAttribute("hidden") && el.getAttribute("aria-hidden") !== "true");
 
 // Dialogs currently open, oldest first: only the last one reacts to Escape.
 const stack = [];
@@ -134,7 +135,12 @@ export default function Modal({
     };
   }, []);
 
-  const placement = { sheet: "justify-center items-end p-0 sm:items-center sm:p-4", drawer: "justify-end items-stretch p-0", center: "justify-center items-center p-4" }[variant] || "justify-center items-center p-4";
+  const placement =
+    {
+      sheet: "justify-center items-end p-0 sm:items-center sm:p-4",
+      drawer: "justify-end items-stretch p-0",
+      center: "justify-center items-center p-4",
+    }[variant] || "justify-center items-center p-4";
 
   return createPortal(
     <TitleContext.Provider value={titleId}>

@@ -13,7 +13,13 @@ const TOP_UPS = [500, 1000, 2500];
 function ProgressBar({ percent, level }) {
   const color = level === "exhausted" || level === "critical" ? "bg-av-red" : level === "warning" ? "bg-gold" : "bg-av-green";
   return (
-    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={Math.min(percent, 100)} aria-valuemin={0} aria-valuemax={100}>
+    <div
+      className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100"
+      role="progressbar"
+      aria-valuenow={Math.min(percent, 100)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
       <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${Math.min(percent, 100)}%` }} />
     </div>
   );
@@ -27,7 +33,10 @@ export default function AiUsagePanel() {
   const [toppingUp, setToppingUp] = useState(null);
 
   useEffect(() => {
-    api.getBillingPlans().then((res) => setPurchasesOpen(res.purchasesOpen !== false)).catch(() => {});
+    api
+      .getBillingPlans()
+      .then((res) => setPurchasesOpen(res.purchasesOpen !== false))
+      .catch(() => {});
   }, []);
 
   const handleTopUp = async (cents) => {
@@ -47,7 +56,12 @@ export default function AiUsagePanel() {
     }
   };
 
-  if (error && !usage) return <section className="rounded-2xl bg-white p-6 text-sm text-slate-500 shadow-sm">AI usage isn't available right now. Try again in a moment.</section>;
+  if (error && !usage)
+    return (
+      <section className="rounded-2xl bg-white p-6 text-sm text-slate-500 shadow-sm">
+        AI usage isn't available right now. Try again in a moment.
+      </section>
+    );
   if (!usage) return <section className="rounded-2xl bg-white p-6 text-sm text-slate-500 shadow-sm">Loading your AI usage…</section>;
 
   const { credits, unlimited } = usage;
@@ -67,12 +81,16 @@ export default function AiUsagePanel() {
         {!usage.aiIncluded && (
           <p className="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-600">
             Your {usage.plan} plan doesn't include the AI features.{" "}
-            <Link to="/billing" className="font-semibold text-gold-dark underline">See plans</Link>
+            <Link to="/billing" className="font-semibold text-gold-dark underline">
+              See plans
+            </Link>
           </p>
         )}
 
         {usage.aiIncluded && unlimited && (
-          <p className="rounded-lg bg-av-green/10 px-3 py-3 text-sm text-navy">Your plan includes unlimited AI. There is nothing to run out of.</p>
+          <p className="rounded-lg bg-av-green/10 px-3 py-3 text-sm text-navy">
+            Your plan includes unlimited AI. There is nothing to run out of.
+          </p>
         )}
 
         {usage.aiIncluded && !unlimited && credits.total > 0 && (
@@ -85,8 +103,12 @@ export default function AiUsagePanel() {
             </div>
             <ProgressBar percent={usage.percentUsed ?? 0} level={usage.warning} />
             <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs text-slate-500">
-              <span>{credits.used} used{credits.inFlight ? ` · ${credits.inFlight} in progress` : ""}</span>
-              <span>{credits.included} included{credits.extra ? ` + ${credits.extra} extra` : ""}</span>
+              <span>
+                {credits.used} used{credits.inFlight ? ` · ${credits.inFlight} in progress` : ""}
+              </span>
+              <span>
+                {credits.included} included{credits.extra ? ` + ${credits.extra} extra` : ""}
+              </span>
             </div>
             {!exhausted && <AiUsageInline usage={usage} className="mt-3" />}
           </>
@@ -101,7 +123,10 @@ export default function AiUsagePanel() {
         {exhausted && (
           <AiBlockedNotice
             className="mt-3"
-            error={{ message: "You've used your AI credits for this period. Add credit to your wallet or upgrade your plan to keep using AI.", data: { actions: ["top_up", "upgrade"] } }}
+            error={{
+              message: "You've used your AI credits for this period. Add credit to your wallet or upgrade your plan to keep using AI.",
+              data: { actions: ["top_up", "upgrade"] },
+            }}
           />
         )}
       </section>

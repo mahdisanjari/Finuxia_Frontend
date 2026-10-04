@@ -9,7 +9,10 @@ import { Ban } from "lucide-react";
 export default function AiBlockedNotice({ error, onDismiss, className = "" }) {
   const actions = error?.data?.actions || [];
   return (
-    <div role="alert" className={`flex items-start gap-2 rounded-lg border border-av-red/40 bg-av-red/10 px-3 py-2.5 text-xs text-av-red ${className}`}>
+    <div
+      role="alert"
+      className={`flex items-start gap-2 rounded-lg border border-av-red/40 bg-av-red/10 px-3 py-2.5 text-xs text-av-red ${className}`}
+    >
       <Ban size={15} className="mt-0.5 shrink-0" />
       <div className="flex-1">
         <p>{error?.message}</p>

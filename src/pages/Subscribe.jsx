@@ -17,9 +17,7 @@ export default function Subscribe() {
   };
 
   const subject = encodeURIComponent("Finuxia subscription request");
-  const body = encodeURIComponent(
-    `Hi Soroush,\n\nI'd like to continue using Finuxia.\n\nAccount: ${user?.email || ""}\n\nThanks!`
-  );
+  const body = encodeURIComponent(`Hi Soroush,\n\nI'd like to continue using Finuxia.\n\nAccount: ${user?.email || ""}\n\nThanks!`);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
@@ -40,9 +38,8 @@ export default function Subscribe() {
             <>
               <h1 className="text-xl font-bold text-navy">You're on the free trial</h1>
               <p className="mt-1 text-sm text-slate-500">
-                Your free access runs until{" "}
-                <span className="font-semibold text-navy">{formatDate(user?.subscriptionUntil)}</span>. After that,
-                contact the admin to keep going.
+                Your free access runs until <span className="font-semibold text-navy">{formatDate(user?.subscriptionUntil)}</span>. After
+                that, contact the admin to keep going.
               </p>
               <button
                 onClick={() => navigate("/dashboard")}
@@ -55,8 +52,8 @@ export default function Subscribe() {
             <>
               <h1 className="text-xl font-bold text-navy">Your free month has ended</h1>
               <p className="mt-1 text-sm text-slate-500">
-                Thanks for trying Finuxia! To keep using the platform, contact the admin to activate your
-                subscription — they'll renew your access right away.
+                Thanks for trying Finuxia! To keep using the platform, contact the admin to activate your subscription — they'll renew your
+                access right away.
               </p>
 
               <a

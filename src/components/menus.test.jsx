@@ -35,7 +35,11 @@ describe("navigation dropdowns", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     const menu = await screen.findByRole("menu", { name: "Clients" });
     expect(trigger).toHaveAttribute("aria-controls", menu.id);
-    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["All Clients", "Groups", "Follow-ups", "Import"]);
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((i) => i.textContent)
+    ).toEqual(["All Clients", "Groups", "Follow-ups", "Import"]);
   });
 
   it("opens with the first item focused, and the arrow keys move through the items, wrapping", async () => {

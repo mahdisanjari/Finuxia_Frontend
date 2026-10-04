@@ -56,7 +56,9 @@ export default function Billing() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-navy">Plans &amp; Billing</h1>
-        <p className="text-sm text-slate-500">Pick a plan to unlock its modules. Each plan below only affects what your own account can use.</p>
+        <p className="text-sm text-slate-500">
+          Pick a plan to unlock its modules. Each plan below only affects what your own account can use.
+        </p>
       </div>
 
       {isLegacy && (
@@ -93,7 +95,9 @@ export default function Billing() {
               <div>
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-bold text-navy">{plan.name}</h2>
-                  {isCurrent && <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-[11px] font-semibold text-gold-dark">Current plan</span>}
+                  {isCurrent && (
+                    <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-[11px] font-semibold text-gold-dark">Current plan</span>
+                  )}
                 </div>
                 <p className="mt-1 text-2xl font-bold text-navy">{formatPrice(plan.priceCents, plan.currency, plan.interval)}</p>
                 <p className="mt-1 text-xs text-slate-500">{plan.description}</p>

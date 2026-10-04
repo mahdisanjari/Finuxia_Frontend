@@ -59,7 +59,13 @@ const emptySupervisionConfirmations = () => ({
 // lirdReviewed/disclosureDocReviewed only need an answer when their parent
 // question was answered Yes.
 const requiredSupervisionQuestions = (confirmations) => {
-  const required = ["applicationReviewed", "needsAnalysisReviewed", "policyIllustrationsReviewed", "lifeInsuranceReplacement", "segFundsLeveraging"];
+  const required = [
+    "applicationReviewed",
+    "needsAnalysisReviewed",
+    "policyIllustrationsReviewed",
+    "lifeInsuranceReplacement",
+    "segFundsLeveraging",
+  ];
   if (confirmations.lifeInsuranceReplacement === true) required.push("lirdReviewed");
   if (confirmations.segFundsLeveraging === true) required.push("disclosureDocReviewed");
   return required;
@@ -79,7 +85,9 @@ function computeStepStates({ data, documents, status }) {
   const productStarted = data.products.some((p) => p.companyId || p.productId || p.coverageAmount || p.premium || p.frequency);
   const productsComplete =
     data.products.length > 0 &&
-    data.products.every((p) => p.companyId && p.productId && p.coverageAmount && p.frequency && p.premium && (p.type !== "segregated_fund" || p.accountType)) &&
+    data.products.every(
+      (p) => p.companyId && p.productId && p.coverageAmount && p.frequency && p.premium && (p.type !== "segregated_fund" || p.accountType)
+    ) &&
     allocationsOk;
   const profile = data.investmentProfile || {};
   const profileFields = [profile.riskTolerance, profile.investmentHorizon, profile.investmentObjective, profile.sourceOfFunds];
@@ -89,8 +97,14 @@ function computeStepStates({ data, documents, status }) {
 
   return [
     {
-      complete: clientRequired.every(filled) && !birthDateError(data.dateOfBirth) && data.dependants.every((d) => !birthDateError(d.dateOfBirth)),
-      started: clientRequired.some(filled) || filled(data.maritalStatus) || filled(data.occupation) || filled(data.annualIncome) || data.dependants.length > 0,
+      complete:
+        clientRequired.every(filled) && !birthDateError(data.dateOfBirth) && data.dependants.every((d) => !birthDateError(d.dateOfBirth)),
+      started:
+        clientRequired.some(filled) ||
+        filled(data.maritalStatus) ||
+        filled(data.occupation) ||
+        filled(data.annualIncome) ||
+        data.dependants.length > 0,
     },
     { complete: data.needs.length > 0, started: data.needs.length > 0 || filled(data.otherNeed) },
     { complete: productsComplete, started: productStarted },
@@ -224,7 +238,10 @@ export default function SalesPackagePrep() {
   }, [packageId]);
 
   useEffect(() => {
-    api.getSalesPackageCompanies().then(setCompanies).catch(() => {});
+    api
+      .getSalesPackageCompanies()
+      .then(setCompanies)
+      .catch(() => {});
   }, []);
 
   // Bumping docVersion makes the Review step's inline previews refetch.
@@ -328,10 +345,12 @@ export default function SalesPackagePrep() {
   };
 
   const productsNeedingAllocation = () =>
-    data.products.filter((p) => INVESTMENT_BEARING_TYPES.has(p.type)).filter((p) => {
-      const total = p.allocations.reduce((sum, a) => sum + (parseFloat(a.allocationPct) || 0), 0);
-      return p.allocations.length === 0 || Math.abs(total - 100) > 0.01;
-    });
+    data.products
+      .filter((p) => INVESTMENT_BEARING_TYPES.has(p.type))
+      .filter((p) => {
+        const total = p.allocations.reduce((sum, a) => sum + (parseFloat(a.allocationPct) || 0), 0);
+        return p.allocations.length === 0 || Math.abs(total - 100) > 0.01;
+      });
 
   const goStep = async (next) => {
     if (next > step && step === 0) {
@@ -379,7 +398,15 @@ export default function SalesPackagePrep() {
 
   const handleCompanyChange = (productRowId, companyId) => {
     const company = companies.find((c) => String(c.id) === String(companyId));
-    updateProduct(productRowId, { companyId, company: company?.name || "", productId: "", productName: "", type: "", accountType: "", allocations: [] });
+    updateProduct(productRowId, {
+      companyId,
+      company: company?.name || "",
+      productId: "",
+      productName: "",
+      type: "",
+      accountType: "",
+      allocations: [],
+    });
     loadProductsFor(companyId);
   };
 
@@ -387,7 +414,13 @@ export default function SalesPackagePrep() {
     const row = data.products.find((p) => p.id === productRowId);
     const list = productsByCompany[row.companyId] || [];
     const product = list.find((p) => String(p.id) === String(productId));
-    updateProduct(productRowId, { productId, productName: product?.name || "", type: product?.type || "", accountType: "", allocations: [] });
+    updateProduct(productRowId, {
+      productId,
+      productName: product?.name || "",
+      type: product?.type || "",
+      accountType: "",
+      allocations: [],
+    });
     if (product && INVESTMENT_BEARING_TYPES.has(product.type)) {
       loadFundsFor(row.companyId, product.type);
     }
@@ -423,9 +456,7 @@ export default function SalesPackagePrep() {
     }
     setUploadProgress((p) => ({ ...p, [key]: 0 }));
     try {
-      const pkg = await api.uploadSalesPackageDocument(packageId, key, file, (pct) =>
-        setUploadProgress((p) => ({ ...p, [key]: pct }))
-      );
+      const pkg = await api.uploadSalesPackageDocument(packageId, key, file, (pct) => setUploadProgress((p) => ({ ...p, [key]: pct })));
       applyDocuments(pkg.documents);
       addToast(wordAllowed && lower.endsWith(".docx") ? `${label} uploaded and converted to PDF` : `${label} uploaded`);
     } catch (err) {
@@ -551,9 +582,7 @@ export default function SalesPackagePrep() {
               className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-gold"
             >
               <button type="button" onClick={() => resumePackage(p.id)} className="min-w-0 flex-1 text-left">
-                <p className="truncate text-sm font-semibold text-navy">
-                  {p.insuredPerson || p.policyOwner || "Untitled package"}
-                </p>
+                <p className="truncate text-sm font-semibold text-navy">{p.insuredPerson || p.policyOwner || "Untitled package"}</p>
                 <p className="text-xs text-slate-400">
                   {p.status === "completed" ? "Completed" : "Draft"} · last saved {new Date(p.updatedAt).toLocaleString()}
                 </p>
@@ -594,7 +623,9 @@ export default function SalesPackagePrep() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-navy">Sales Package Prep</h1>
-          <p className="text-sm text-slate-500">Enter client information, select products, upload documents, and create a complete package.</p>
+          <p className="text-sm text-slate-500">
+            Enter client information, select products, upload documents, and create a complete package.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -728,13 +759,31 @@ function Stepper({ steps, current, statuses, onSelect }) {
               : st === "incomplete"
                 ? "bg-amber-100 text-amber-700 ring-1 ring-amber-400"
                 : "bg-slate-100 text-slate-400";
-          const text = isCurrent ? "text-navy" : st === "complete" ? "text-av-green" : st === "incomplete" ? "text-amber-600" : "text-slate-400";
+          const text = isCurrent
+            ? "text-navy"
+            : st === "complete"
+              ? "text-av-green"
+              : st === "incomplete"
+                ? "text-amber-600"
+                : "text-slate-400";
           return (
             <button key={label} type="button" onClick={() => onSelect(i)} className="flex shrink-0 items-center gap-2 px-2">
-              <span className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${circle}`}>
-                {st === "complete" && !isCurrent ? <CheckCircle2 size={15} /> : st === "incomplete" && !isCurrent ? <AlertTriangle size={13} /> : i + 1}
-                {isCurrent && st === "incomplete" && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-amber-400" />}
-                {isCurrent && st === "complete" && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-av-green" />}
+              <span
+                className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${circle}`}
+              >
+                {st === "complete" && !isCurrent ? (
+                  <CheckCircle2 size={15} />
+                ) : st === "incomplete" && !isCurrent ? (
+                  <AlertTriangle size={13} />
+                ) : (
+                  i + 1
+                )}
+                {isCurrent && st === "incomplete" && (
+                  <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-amber-400" />
+                )}
+                {isCurrent && st === "complete" && (
+                  <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-av-green" />
+                )}
               </span>
               <span className={`whitespace-nowrap text-sm font-medium ${text}`}>{label}</span>
               {i < steps.length - 1 && <span className="mx-2 h-px w-6 shrink-0 bg-slate-200" />}
@@ -743,8 +792,12 @@ function Stepper({ steps, current, statuses, onSelect }) {
         })}
       </div>
       <div className="flex flex-wrap items-center gap-4 px-1 text-[11px] text-slate-400">
-        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-av-green" /> Complete</span>
-        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" /> Incomplete</span>
+        <span className="flex items-center gap-1">
+          <span className="h-2 w-2 rounded-full bg-av-green" /> Complete
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="h-2 w-2 rounded-full bg-amber-400" /> Incomplete
+        </span>
       </div>
     </div>
   );
@@ -819,10 +872,12 @@ function CurrencyField({ label, value, onChange, placeholder }) {
 
 function ClientStep({ data, patch }) {
   const { clients } = useClients();
-  const clientOptions = clients.map((c) => {
-    const name = `${c.first || ""} ${c.last || ""}`.trim();
-    return { value: String(c.id), label: name, search: `${name} ${c.email || ""} ${c.phone || ""}` };
-  }).filter((o) => o.label);
+  const clientOptions = clients
+    .map((c) => {
+      const name = `${c.first || ""} ${c.last || ""}`.trim();
+      return { value: String(c.id), label: name, search: `${name} ${c.email || ""} ${c.phone || ""}` };
+    })
+    .filter((o) => o.label);
   const updateDependant = (id, fields) => patch({ dependants: data.dependants.map((d) => (d.id === id ? { ...d, ...fields } : d)) });
   const addDependant = () => patch({ dependants: [...data.dependants, emptyDependant()] });
   const removeDependant = (id) => patch({ dependants: data.dependants.filter((d) => d.id !== id) });
@@ -860,7 +915,9 @@ function ClientStep({ data, patch }) {
             <select className={inputClass} value={data.canadianStatus} onChange={(e) => patch({ canadianStatus: e.target.value })}>
               <option value="">Select...</option>
               {CANADIAN_STATUSES.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
           </Field>
@@ -868,7 +925,9 @@ function ClientStep({ data, patch }) {
             <select className={inputClass} value={data.province} onChange={(e) => patch({ province: e.target.value })}>
               <option value="">Select...</option>
               {PROVINCES.map((p) => (
-                <option key={p} value={p}>{p}</option>
+                <option key={p} value={p}>
+                  {p}
+                </option>
               ))}
             </select>
           </Field>
@@ -887,14 +946,21 @@ function ClientStep({ data, patch }) {
             <select className={inputClass} value={data.maritalStatus} onChange={(e) => patch({ maritalStatus: e.target.value })}>
               <option value="">Select...</option>
               {MARITAL_STATUSES.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
           </Field>
           <Field label="Occupation">
             <input className={inputClass} value={data.occupation} onChange={(e) => patch({ occupation: e.target.value })} />
           </Field>
-          <CurrencyField label="Annual Income" value={data.annualIncome} onChange={(v) => patch({ annualIncome: v })} placeholder="$120,000" />
+          <CurrencyField
+            label="Annual Income"
+            value={data.annualIncome}
+            onChange={(v) => patch({ annualIncome: v })}
+            placeholder="$120,000"
+          />
         </div>
       </Card>
 
@@ -905,7 +971,12 @@ function ClientStep({ data, patch }) {
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {data.homeowner && (
-            <CurrencyField label="Mortgage Balance" value={data.mortgageBalance} onChange={(v) => patch({ mortgageBalance: v })} placeholder="$400,000" />
+            <CurrencyField
+              label="Mortgage Balance"
+              value={data.mortgageBalance}
+              onChange={(v) => patch({ mortgageBalance: v })}
+              placeholder="$400,000"
+            />
           )}
           <CurrencyField label="Other Major Debt" value={data.otherMajorDebt} onChange={(v) => patch({ otherMajorDebt: v })} />
         </div>
@@ -914,7 +985,11 @@ function ClientStep({ data, patch }) {
       <Card title="Family" subtitle="Dependants for this client.">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Dependants</span>
-          <button type="button" onClick={addDependant} className="flex items-center gap-1 text-xs font-semibold text-gold-dark hover:underline">
+          <button
+            type="button"
+            onClick={addDependant}
+            className="flex items-center gap-1 text-xs font-semibold text-gold-dark hover:underline"
+          >
             <Plus size={12} />
             {data.dependants.length ? "Add Another Dependant" : "Add Dependant"}
           </button>
@@ -941,7 +1016,9 @@ function ClientStep({ data, patch }) {
                   >
                     <option value="">Select...</option>
                     {DEPENDANT_RELATIONSHIPS.map((r) => (
-                      <option key={r} value={r}>{r}</option>
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -986,8 +1063,7 @@ function ClientStep({ data, patch }) {
 }
 
 function NeedsStep({ data, patch }) {
-  const toggleNeed = (need) =>
-    patch({ needs: data.needs.includes(need) ? data.needs.filter((n) => n !== need) : [...data.needs, need] });
+  const toggleNeed = (need) => patch({ needs: data.needs.includes(need) ? data.needs.filter((n) => n !== need) : [...data.needs, need] });
   return (
     <Card title="Client Needs & Objectives" subtitle="Select all that apply for this client.">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -1044,7 +1120,9 @@ function ProductsStep({
                 >
                   <option value="">Select Company</option>
                   {companies.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
                   ))}
                 </select>
                 <select
@@ -1055,7 +1133,9 @@ function ProductsStep({
                 >
                   <option value="">{p.companyId ? "Select Product" : "Pick a company first"}</option>
                   {products.map((prod) => (
-                    <option key={prod.id} value={prod.id}>{prod.name}</option>
+                    <option key={prod.id} value={prod.id}>
+                      {prod.name}
+                    </option>
                   ))}
                 </select>
                 <CurrencyInput
@@ -1071,7 +1151,9 @@ function ProductsStep({
                 >
                   <option value="">Frequency</option>
                   {FREQUENCIES.map((f) => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
                   ))}
                 </select>
                 <CurrencyInput
@@ -1082,7 +1164,11 @@ function ProductsStep({
                   title={p.frequency ? undefined : "Select a frequency first"}
                   className="rounded-lg border border-slate-200 px-2.5 py-2 text-sm text-navy outline-none focus:border-gold disabled:bg-slate-50 disabled:text-slate-400 sm:col-span-1"
                 />
-                <button type="button" onClick={() => onRemoveProduct(p.id)} className="flex items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-av-red/10 hover:text-av-red sm:col-span-1">
+                <button
+                  type="button"
+                  onClick={() => onRemoveProduct(p.id)}
+                  className="flex items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-av-red/10 hover:text-av-red sm:col-span-1"
+                >
                   <Trash2 size={15} />
                 </button>
               </div>
@@ -1102,7 +1188,9 @@ function ProductsStep({
                   >
                     <option value="">Select account type...</option>
                     {ACCOUNT_TYPES.map((t) => (
-                      <option key={t} value={t}>{t}</option>
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -1111,10 +1199,10 @@ function ProductsStep({
               {isInvestmentBearing && (
                 <div className="mt-3 rounded-lg bg-slate-50 p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Fund Allocation — {p.productName}
-                    </span>
-                    <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${Math.abs(total - 100) < 0.01 ? "bg-av-green/10 text-av-green" : "bg-av-red/10 text-av-red"}`}>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fund Allocation — {p.productName}</span>
+                    <span
+                      className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${Math.abs(total - 100) < 0.01 ? "bg-av-green/10 text-av-green" : "bg-av-red/10 text-av-red"}`}
+                    >
                       {Math.abs(total - 100) < 0.01 ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
                       {total}% allocated
                     </span>
@@ -1147,7 +1235,11 @@ function ProductsStep({
                           />
                           <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
                         </div>
-                        <button type="button" onClick={() => onRemoveAllocation(p.id, a.id)} className="flex items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-av-red/10 hover:text-av-red sm:col-span-1">
+                        <button
+                          type="button"
+                          onClick={() => onRemoveAllocation(p.id, a.id)}
+                          className="flex items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-av-red/10 hover:text-av-red sm:col-span-1"
+                        >
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -1167,7 +1259,11 @@ function ProductsStep({
           );
         })}
       </div>
-      <button type="button" onClick={onAddProduct} className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-gold-dark transition hover:underline">
+      <button
+        type="button"
+        onClick={onAddProduct}
+        className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-gold-dark transition hover:underline"
+      >
         <Plus size={14} />
         Add Another Product
       </button>
@@ -1176,7 +1272,8 @@ function ProductsStep({
 }
 
 function DetailsStep({ data, patch, hasInvestmentProduct }) {
-  const updateCoverage = (id, fields) => patch({ existingCoverage: data.existingCoverage.map((c) => (c.id === id ? { ...c, ...fields } : c)) });
+  const updateCoverage = (id, fields) =>
+    patch({ existingCoverage: data.existingCoverage.map((c) => (c.id === id ? { ...c, ...fields } : c)) });
   const addCoverage = () => patch({ existingCoverage: [...data.existingCoverage, emptyCoverage()] });
   const removeCoverage = (id) => patch({ existingCoverage: data.existingCoverage.filter((c) => c.id !== id) });
   const patchInvestmentProfile = (fields) => patch({ investmentProfile: { ...data.investmentProfile, ...fields } });
@@ -1187,27 +1284,59 @@ function DetailsStep({ data, patch, hasInvestmentProduct }) {
         <Card title="Investment Profile" subtitle="Complete investment profile for UL/Seg fund products.">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <Field label="Risk Tolerance">
-              <select className={inputClass} value={data.investmentProfile.riskTolerance} onChange={(e) => patchInvestmentProfile({ riskTolerance: e.target.value })}>
+              <select
+                className={inputClass}
+                value={data.investmentProfile.riskTolerance}
+                onChange={(e) => patchInvestmentProfile({ riskTolerance: e.target.value })}
+              >
                 <option value="">Select...</option>
-                {RISK_TOLERANCES.map((r) => <option key={r} value={r}>{r}</option>)}
+                {RISK_TOLERANCES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
               </select>
             </Field>
             <Field label="Investment Horizon">
-              <select className={inputClass} value={data.investmentProfile.investmentHorizon} onChange={(e) => patchInvestmentProfile({ investmentHorizon: e.target.value })}>
+              <select
+                className={inputClass}
+                value={data.investmentProfile.investmentHorizon}
+                onChange={(e) => patchInvestmentProfile({ investmentHorizon: e.target.value })}
+              >
                 <option value="">Select...</option>
-                {INVESTMENT_HORIZONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                {INVESTMENT_HORIZONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
               </select>
             </Field>
             <Field label="Investment Objective">
-              <select className={inputClass} value={data.investmentProfile.investmentObjective} onChange={(e) => patchInvestmentProfile({ investmentObjective: e.target.value })}>
+              <select
+                className={inputClass}
+                value={data.investmentProfile.investmentObjective}
+                onChange={(e) => patchInvestmentProfile({ investmentObjective: e.target.value })}
+              >
                 <option value="">Select...</option>
-                {INVESTMENT_OBJECTIVES.map((r) => <option key={r} value={r}>{r}</option>)}
+                {INVESTMENT_OBJECTIVES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
               </select>
             </Field>
             <Field label="Source of Funds">
-              <select className={inputClass} value={data.investmentProfile.sourceOfFunds} onChange={(e) => patchInvestmentProfile({ sourceOfFunds: e.target.value })}>
+              <select
+                className={inputClass}
+                value={data.investmentProfile.sourceOfFunds}
+                onChange={(e) => patchInvestmentProfile({ sourceOfFunds: e.target.value })}
+              >
                 <option value="">Select...</option>
-                {SOURCES_OF_FUNDS.map((r) => <option key={r} value={r}>{r}</option>)}
+                {SOURCES_OF_FUNDS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
               </select>
             </Field>
           </div>
@@ -1231,7 +1360,9 @@ function DetailsStep({ data, patch, hasInvestmentProduct }) {
               >
                 <option value="">Type</option>
                 {EXISTING_COVERAGE_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
                 ))}
               </select>
               <CurrencyInput
@@ -1240,19 +1371,30 @@ function DetailsStep({ data, patch, hasInvestmentProduct }) {
                 onChange={(v) => updateCoverage(c.id, { amount: v })}
                 className="rounded-lg border border-slate-200 px-2.5 py-2 text-sm text-navy outline-none focus:border-gold sm:col-span-3"
               />
-              <button type="button" onClick={() => removeCoverage(c.id)} className="flex items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-av-red/10 hover:text-av-red sm:col-span-1">
+              <button
+                type="button"
+                onClick={() => removeCoverage(c.id)}
+                className="flex items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-av-red/10 hover:text-av-red sm:col-span-1"
+              >
                 <Trash2 size={15} />
               </button>
             </div>
           ))}
         </div>
-        <button type="button" onClick={addCoverage} className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-gold-dark transition hover:underline">
+        <button
+          type="button"
+          onClick={addCoverage}
+          className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-gold-dark transition hover:underline"
+        >
           <Plus size={14} />
           Add Existing Coverage
         </button>
       </Card>
 
-      <Card title="Advisor Notes / Special Circumstances" subtitle="Optional — Anything relevant that doesn't fit the fields above such as Disability Waiver of Charges.">
+      <Card
+        title="Advisor Notes / Special Circumstances"
+        subtitle="Optional — Anything relevant that doesn't fit the fields above such as Disability Waiver of Charges."
+      >
         <textarea
           rows={4}
           value={data.advisorNotes}
@@ -1270,7 +1412,10 @@ function DetailsStep({ data, patch, hasInvestmentProduct }) {
 // convention the backend's PDF renderer uses (see form_filler.py /
 // pdf_builder.py). Every other line is an ordinary paragraph.
 function LetterPreview({ text }) {
-  const rawLines = (text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const rawLines = (text || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
   if (rawLines.length === 0) {
     return <p className="text-sm text-slate-400">Click "Generate Draft" below to draft the letter.</p>;
   }
@@ -1298,26 +1443,61 @@ function LetterPreview({ text }) {
   return (
     <div className="flex flex-col gap-3">
       {blocks.map((b, i) => {
-        if (b.type === "title") return <p key={i} className="text-lg font-bold text-navy">{b.text}</p>;
-        if (b.type === "heading") return <p key={i} className="mt-1 font-semibold text-navy">{b.text}</p>;
+        if (b.type === "title")
+          return (
+            <p key={i} className="text-lg font-bold text-navy">
+              {b.text}
+            </p>
+          );
+        if (b.type === "heading")
+          return (
+            <p key={i} className="mt-1 font-semibold text-navy">
+              {b.text}
+            </p>
+          );
         if (b.type === "columns") {
           return (
             <div key={i} className="mt-4 grid grid-cols-1 gap-x-8 gap-y-5 text-sm text-slate-700 sm:grid-cols-2">
-              {b.rows.flatMap((row, r) => row.map((cell, c) => <p key={`${r}-${c}`} className="break-words">{cell}</p>))}
+              {b.rows.flatMap((row, r) =>
+                row.map((cell, c) => (
+                  <p key={`${r}-${c}`} className="break-words">
+                    {cell}
+                  </p>
+                ))
+              )}
             </div>
           );
         }
-        return <p key={i} className="text-sm leading-relaxed text-slate-700">{b.text}</p>;
+        return (
+          <p key={i} className="text-sm leading-relaxed text-slate-700">
+            {b.text}
+          </p>
+        );
       })}
     </div>
   );
 }
 
-function LetterStep({ data, patch, letterDoc, onDownload, onDownloadLetterPdf, onDraftLetter, letterDrafting, aiUsage, letterBlocked, onDismissBlocked, onSaveLetter }) {
+function LetterStep({
+  data,
+  patch,
+  letterDoc,
+  onDownload,
+  onDownloadLetterPdf,
+  onDraftLetter,
+  letterDrafting,
+  aiUsage,
+  letterBlocked,
+  onDismissBlocked,
+  onSaveLetter,
+}) {
   const [editing, setEditing] = useState(false);
   return (
     <>
-      <Card title="Reason Why Letter" subtitle="Must be generated and reviewed before moving on. The Agent Disclosure and Supervision forms are handled later, on the Documents step.">
+      <Card
+        title="Reason Why Letter"
+        subtitle="Must be generated and reviewed before moving on. The Agent Disclosure and Supervision forms are handled later, on the Documents step."
+      >
         <AiUsageInline usage={aiUsage} className="mb-3" />
         {letterBlocked && <AiBlockedNotice error={letterBlocked} onDismiss={onDismissBlocked} className="mb-3" />}
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -1356,35 +1536,35 @@ function LetterStep({ data, patch, letterDoc, onDownload, onDownloadLetterPdf, o
         )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={onSaveLetter}
-          disabled={!data.reasonWhyLetterText.trim()}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-navy transition hover:bg-slate-50 disabled:opacity-40"
-        >
-          <Save size={14} />
-          Save Letter
-        </button>
-        {letterDoc?.generatedFileName && (
           <button
             type="button"
-            onClick={() => onDownload(letterDoc.key, "Reason Why Letter", true)}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-navy transition hover:bg-slate-50"
+            onClick={onSaveLetter}
+            disabled={!data.reasonWhyLetterText.trim()}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-navy transition hover:bg-slate-50 disabled:opacity-40"
           >
-            <Download size={14} />
-            Download Word (.docx)
+            <Save size={14} />
+            Save Letter
           </button>
-        )}
-        {letterDoc?.generatedFileName && (
-          <button
-            type="button"
-            onClick={onDownloadLetterPdf}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-navy transition hover:bg-slate-50"
-          >
-            <Download size={14} />
-            Download PDF
-          </button>
-        )}
+          {letterDoc?.generatedFileName && (
+            <button
+              type="button"
+              onClick={() => onDownload(letterDoc.key, "Reason Why Letter", true)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-navy transition hover:bg-slate-50"
+            >
+              <Download size={14} />
+              Download Word (.docx)
+            </button>
+          )}
+          {letterDoc?.generatedFileName && (
+            <button
+              type="button"
+              onClick={onDownloadLetterPdf}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-navy transition hover:bg-slate-50"
+            >
+              <Download size={14} />
+              Download PDF
+            </button>
+          )}
         </div>
       </Card>
     </>
@@ -1422,7 +1602,8 @@ function ProfileLine({ label, children }) {
 function ComplianceProfileCard({ profile }) {
   const provinces = profile?.licensedProvinces || [];
   const companies = profile?.companiesRepresented || [];
-  const incomplete = provinces.length === 0 || companies.length === 0 || !profile?.agencyName || (profile?.supervisorRequired && !profile?.supervisorName);
+  const incomplete =
+    provinces.length === 0 || companies.length === 0 || !profile?.agencyName || (profile?.supervisorRequired && !profile?.supervisorName);
   return (
     <Card title="Your Compliance Profile" subtitle="This is what the Agent Disclosure and Supervision forms are filled from.">
       {incomplete && (
@@ -1438,9 +1619,7 @@ function ComplianceProfileCard({ profile }) {
         <ProfileLine label="Licensed In">{provinces.join(", ")}</ProfileLine>
         <ProfileLine label="Companies Represented">{companies.join(", ")}</ProfileLine>
         <ProfileLine label="Supervisor">
-          {profile?.supervisorRequired
-            ? [profile.supervisorName, profile.supervisorTitle].filter(Boolean).join(" — ")
-            : "Not required"}
+          {profile?.supervisorRequired ? [profile.supervisorName, profile.supervisorTitle].filter(Boolean).join(" — ") : "Not required"}
         </ProfileLine>
       </div>
       <Link to="/profile?tab=compliance" className="mt-3 inline-block text-xs font-semibold text-gold-dark hover:underline">
@@ -1455,33 +1634,45 @@ function ComplianceStep({ data, patch, profile }) {
   const setC = (fields) => patch({ supervisionConfirmations: { ...c, ...fields } });
   return (
     <>
-    <ComplianceProfileCard profile={profile} />
-    <Card
-      title="Compliance Confirmations"
-      subtitle="Only you can answer these — they're never inferred, and they're used to generate the Supervision Form on the next step."
-    >
-      <div className="flex flex-col gap-2.5">
-        <YesNo label="Insurance Application reviewed?" value={c.applicationReviewed} onChange={(v) => setC({ applicationReviewed: v })} />
-        <YesNo label="Needs Analysis reviewed?" value={c.needsAnalysisReviewed} onChange={(v) => setC({ needsAnalysisReviewed: v })} />
-        <YesNo label="Policy Illustrations reviewed?" value={c.policyIllustrationsReviewed} onChange={(v) => setC({ policyIllustrationsReviewed: v })} />
-        <YesNo
-          label="Is this a Life Insurance Replacement?"
-          value={c.lifeInsuranceReplacement}
-          onChange={(v) => setC({ lifeInsuranceReplacement: v, lirdReviewed: v ? c.lirdReviewed : null })}
-        />
-        {c.lifeInsuranceReplacement === true && (
-          <YesNo label="LIRD / Written Comparative Analysis reviewed?" value={c.lirdReviewed} onChange={(v) => setC({ lirdReviewed: v })} />
-        )}
-        <YesNo
-          label="Segregated Funds Leveraging?"
-          value={c.segFundsLeveraging}
-          onChange={(v) => setC({ segFundsLeveraging: v, disclosureDocReviewed: v ? c.disclosureDocReviewed : null })}
-        />
-        {c.segFundsLeveraging === true && (
-          <YesNo label="Disclosure Document reviewed?" value={c.disclosureDocReviewed} onChange={(v) => setC({ disclosureDocReviewed: v })} />
-        )}
-      </div>
-    </Card>
+      <ComplianceProfileCard profile={profile} />
+      <Card
+        title="Compliance Confirmations"
+        subtitle="Only you can answer these — they're never inferred, and they're used to generate the Supervision Form on the next step."
+      >
+        <div className="flex flex-col gap-2.5">
+          <YesNo label="Insurance Application reviewed?" value={c.applicationReviewed} onChange={(v) => setC({ applicationReviewed: v })} />
+          <YesNo label="Needs Analysis reviewed?" value={c.needsAnalysisReviewed} onChange={(v) => setC({ needsAnalysisReviewed: v })} />
+          <YesNo
+            label="Policy Illustrations reviewed?"
+            value={c.policyIllustrationsReviewed}
+            onChange={(v) => setC({ policyIllustrationsReviewed: v })}
+          />
+          <YesNo
+            label="Is this a Life Insurance Replacement?"
+            value={c.lifeInsuranceReplacement}
+            onChange={(v) => setC({ lifeInsuranceReplacement: v, lirdReviewed: v ? c.lirdReviewed : null })}
+          />
+          {c.lifeInsuranceReplacement === true && (
+            <YesNo
+              label="LIRD / Written Comparative Analysis reviewed?"
+              value={c.lirdReviewed}
+              onChange={(v) => setC({ lirdReviewed: v })}
+            />
+          )}
+          <YesNo
+            label="Segregated Funds Leveraging?"
+            value={c.segFundsLeveraging}
+            onChange={(v) => setC({ segFundsLeveraging: v, disclosureDocReviewed: v ? c.disclosureDocReviewed : null })}
+          />
+          {c.segFundsLeveraging === true && (
+            <YesNo
+              label="Disclosure Document reviewed?"
+              value={c.disclosureDocReviewed}
+              onChange={(v) => setC({ disclosureDocReviewed: v })}
+            />
+          )}
+        </div>
+      </Card>
     </>
   );
 }
@@ -1549,14 +1740,27 @@ function GeneratedDocCard({ label, subtitle, doc, onDownload, onDownloadPdf, onG
   );
 }
 
-function DocumentsStep({ documents, uploadProgress, onUpload, onDownload, onDownloadLetterPdf, onGenerateDisclosure, disclosureGenerating, onGenerateSupervisionForm, supervisionGenerating }) {
+function DocumentsStep({
+  documents,
+  uploadProgress,
+  onUpload,
+  onDownload,
+  onDownloadLetterPdf,
+  onGenerateDisclosure,
+  disclosureGenerating,
+  onGenerateSupervisionForm,
+  supervisionGenerating,
+}) {
   const disclosureDoc = documents.find((d) => d.key === "agentDisclosureForm");
   const letterDoc = documents.find((d) => d.key === "reasonWhyLetter");
   const supervisionDoc = documents.find((d) => d.key === "supervisionForm");
 
   return (
     <>
-      <Card title="Documents We Prepare For You" subtitle="Generate and download these, complete or sign them as needed, then upload the final versions in the next section.">
+      <Card
+        title="Documents We Prepare For You"
+        subtitle="Generate and download these, complete or sign them as needed, then upload the final versions in the next section."
+      >
         <div className="flex flex-col gap-2.5">
           <GeneratedDocCard
             label="Reason Why Letter"
@@ -1584,12 +1788,17 @@ function DocumentsStep({ documents, uploadProgress, onUpload, onDownload, onDown
         </div>
       </Card>
 
-      <Card title="Upload Documents" subtitle={`Upload all ${documents.length} documents to create the final package — including the three above, in their final form.`}>
+      <Card
+        title="Upload Documents"
+        subtitle={`Upload all ${documents.length} documents to create the final package — including the three above, in their final form.`}
+      >
         <div className="flex flex-col gap-2.5">
           {documents.map((d, i) => (
             <div key={d.key} className="rounded-xl border border-slate-200 p-3">
               <div className="flex flex-wrap items-center gap-3">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy/5 text-xs font-bold text-navy">{i + 1}</div>
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy/5 text-xs font-bold text-navy">
+                  {i + 1}
+                </div>
                 <span className="w-full shrink-0 text-sm font-medium text-navy sm:w-48">{d.label} *</span>
                 <label className="flex min-w-[200px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-500 transition hover:border-gold hover:bg-gold/5">
                   {d.uploaded ? (
@@ -1603,9 +1812,16 @@ function DocumentsStep({ documents, uploadProgress, onUpload, onDownload, onDown
                       Choose file
                     </span>
                   )}
-                  <input type="file" accept={d.key === "reasonWhyLetter" ? "application/pdf,.pdf,.docx" : "application/pdf,.pdf"} className="hidden" onChange={(e) => onUpload(d.key, d.label, e.target.files?.[0])} />
+                  <input
+                    type="file"
+                    accept={d.key === "reasonWhyLetter" ? "application/pdf,.pdf,.docx" : "application/pdf,.pdf"}
+                    className="hidden"
+                    onChange={(e) => onUpload(d.key, d.label, e.target.files?.[0])}
+                  />
                 </label>
-                <span className="shrink-0 text-xs text-slate-400">{d.key === "reasonWhyLetter" ? "PDF or Word (Max 10 MB)" : "PDF (Max 10 MB)"}</span>
+                <span className="shrink-0 text-xs text-slate-400">
+                  {d.key === "reasonWhyLetter" ? "PDF or Word (Max 10 MB)" : "PDF (Max 10 MB)"}
+                </span>
               </div>
               <UploadProgressBar percent={uploadProgress[d.key]} />
             </div>
@@ -1653,7 +1869,11 @@ function DocReviewCard({ packageId, doc, version, progress, onUpload, onDownload
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {doc.uploaded && (
-            <button type="button" onClick={() => onDownload(doc.key, doc.label)} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-navy hover:bg-slate-50">
+            <button
+              type="button"
+              onClick={() => onDownload(doc.key, doc.label)}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-navy hover:bg-slate-50"
+            >
               <Download size={12} />
               Download
             </button>
@@ -1661,7 +1881,12 @@ function DocReviewCard({ packageId, doc, version, progress, onUpload, onDownload
           <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-navy hover:bg-slate-50">
             <Upload size={12} />
             Replace file
-            <input type="file" accept={doc.key === "reasonWhyLetter" ? "application/pdf,.pdf,.docx" : "application/pdf,.pdf"} className="hidden" onChange={(e) => onUpload(doc.key, doc.label, e.target.files?.[0])} />
+            <input
+              type="file"
+              accept={doc.key === "reasonWhyLetter" ? "application/pdf,.pdf,.docx" : "application/pdf,.pdf"}
+              className="hidden"
+              onChange={(e) => onUpload(doc.key, doc.label, e.target.files?.[0])}
+            />
           </label>
         </div>
       </div>
@@ -1710,12 +1935,22 @@ function ReviewStep({
 
   return (
     <>
-      <Card title="Review & Generate" subtitle="Check everything below — every uploaded document is shown as it will appear in the package.">
+      <Card
+        title="Review & Generate"
+        subtitle="Check everything below — every uploaded document is shown as it will appear in the package."
+      >
         <div className="flex flex-col gap-4 text-sm">
           <SummaryRow label="Advisor">{advisorName || "—"}</SummaryRow>
           <SummaryRow label="Policy Owner">{data.policyOwner || "—"}</SummaryRow>
           <SummaryRow label="Insured Person">{data.insuredPerson || "—"}</SummaryRow>
-          <SummaryRow label="Dependants">{data.dependants.filter((d) => d.fullName).length ? data.dependants.map((d) => d.fullName).filter(Boolean).join(", ") : "None"}</SummaryRow>
+          <SummaryRow label="Dependants">
+            {data.dependants.filter((d) => d.fullName).length
+              ? data.dependants
+                  .map((d) => d.fullName)
+                  .filter(Boolean)
+                  .join(", ")
+              : "None"}
+          </SummaryRow>
           <SummaryRow label="Needs">{data.needs.length ? data.needs.join(", ") : "None selected"}</SummaryRow>
           <div>
             <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Products</p>
@@ -1723,17 +1958,25 @@ function ReviewStep({
               <p className="text-slate-400">No products added.</p>
             ) : (
               <ul className="flex flex-col gap-1">
-                {data.products.filter((p) => p.productName).map((p) => (
-                  <li key={p.id} className="rounded-lg bg-slate-50 px-3 py-2">
-                    <span className="font-medium text-navy">{p.company} — {p.productName || "(not selected)"}{p.accountType ? ` (${p.accountType})` : ""}</span>
-                    <span className="text-slate-500"> · {p.coverageAmount || "—"} · {p.premium || "—"} {p.frequency}</span>
-                    {p.allocations.length > 0 && (
-                      <div className="mt-1 text-xs text-slate-500">
-                        {p.allocations.map((a) => `${a.fundName} (${a.allocationPct}%)`).join(", ")}
-                      </div>
-                    )}
-                  </li>
-                ))}
+                {data.products
+                  .filter((p) => p.productName)
+                  .map((p) => (
+                    <li key={p.id} className="rounded-lg bg-slate-50 px-3 py-2">
+                      <span className="font-medium text-navy">
+                        {p.company} — {p.productName || "(not selected)"}
+                        {p.accountType ? ` (${p.accountType})` : ""}
+                      </span>
+                      <span className="text-slate-500">
+                        {" "}
+                        · {p.coverageAmount || "—"} · {p.premium || "—"} {p.frequency}
+                      </span>
+                      {p.allocations.length > 0 && (
+                        <div className="mt-1 text-xs text-slate-500">
+                          {p.allocations.map((a) => `${a.fundName} (${a.allocationPct}%)`).join(", ")}
+                        </div>
+                      )}
+                    </li>
+                  ))}
               </ul>
             )}
           </div>
@@ -1743,10 +1986,21 @@ function ReviewStep({
         </div>
       </Card>
 
-      <Card title="Documents" subtitle="These are the files you uploaded — scroll through each. To change one, use Replace file. Nothing is sent anywhere.">
+      <Card
+        title="Documents"
+        subtitle="These are the files you uploaded — scroll through each. To change one, use Replace file. Nothing is sent anywhere."
+      >
         <div className="flex flex-col gap-4">
           {documents.map((doc) => (
-            <DocReviewCard key={doc.key} packageId={packageId} doc={doc} version={docVersion} progress={uploadProgress[doc.key]} onUpload={onUpload} onDownload={onDownload} />
+            <DocReviewCard
+              key={doc.key}
+              packageId={packageId}
+              doc={doc}
+              version={docVersion}
+              progress={uploadProgress[doc.key]}
+              onUpload={onUpload}
+              onDownload={onDownload}
+            />
           ))}
         </div>
       </Card>
@@ -1755,8 +2009,14 @@ function ReviewStep({
         {error && <p className="mb-3 text-xs text-av-red">{error}</p>}
 
         <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-navy">
-          <input type="checkbox" checked={confirmChecked} onChange={(e) => setConfirmChecked(e.target.checked)} className="mt-0.5 accent-gold" />
-          I have reviewed the information above and confirm that it accurately reflects the client's circumstances, needs and recommendations.
+          <input
+            type="checkbox"
+            checked={confirmChecked}
+            onChange={(e) => setConfirmChecked(e.target.checked)}
+            className="mt-0.5 accent-gold"
+          />
+          I have reviewed the information above and confirm that it accurately reflects the client's circumstances, needs and
+          recommendations.
         </label>
 
         {blockers.length > 0 && (

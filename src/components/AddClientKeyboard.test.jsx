@@ -38,7 +38,19 @@ describe("keyboard-only walkthrough: creating a client", () => {
     server.use(
       http.post(`${API}/api/clients`, async ({ request }) => {
         posted = await request.json();
-        return HttpResponse.json({ ...posted, id: "c_new", version: 1, stages: posted.stages || {}, notes: posted.notes || [], files: [], interests: [], meeting: null }, { status: 201 });
+        return HttpResponse.json(
+          {
+            ...posted,
+            id: "c_new",
+            version: 1,
+            stages: posted.stages || {},
+            notes: posted.notes || [],
+            files: [],
+            interests: [],
+            meeting: null,
+          },
+          { status: 201 }
+        );
       })
     );
     renderWithProviders(<Shell />, { route: "/dashboard" });
