@@ -1,3 +1,4 @@
+import Modal, { ModalTitle } from "./Modal";
 import { useEffect, useState } from "react";
 import { X, Sparkles } from "lucide-react";
 import { api } from "../lib/api";
@@ -56,19 +57,12 @@ export default function FollowUpRuleModal({ client, onClose }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal onClose={onClose} panelClassName="max-w-sm rounded-2xl p-6">
         <div className="mb-1 flex items-center justify-between">
-          <h2 className="flex items-center gap-1.5 text-lg font-semibold text-navy">
+          <ModalTitle className="flex items-center gap-1.5 text-lg font-semibold text-navy">
             <Sparkles size={17} className="text-gold-dark" />
             Automated Follow-ups
-          </h2>
+          </ModalTitle>
           <button
             onClick={onClose}
             className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-navy"
@@ -149,7 +143,6 @@ export default function FollowUpRuleModal({ client, onClose }) {
             Done
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

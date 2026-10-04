@@ -1,3 +1,4 @@
+import Modal, { ModalTitle } from "./Modal";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { todayISO } from "../lib/followUp";
@@ -13,16 +14,9 @@ export default function RescheduleModal({ title, currentDate, onSave, onClose })
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal onClose={onClose} panelClassName="max-w-sm rounded-2xl p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-navy">{title}</h2>
+          <ModalTitle className="text-lg font-semibold text-navy">{title}</ModalTitle>
           <button
             onClick={onClose}
             className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-navy"
@@ -59,7 +53,6 @@ export default function RescheduleModal({ title, currentDate, onSave, onClose })
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

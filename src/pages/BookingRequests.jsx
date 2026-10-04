@@ -1,3 +1,4 @@
+import Modal, { ModalTitle } from "../components/Modal";
 import { useEffect, useState } from "react";
 import { CalendarClock, Check, X, RefreshCcw, Clock, Mail, Phone, AlertTriangle } from "lucide-react";
 import { api } from "../lib/api";
@@ -284,9 +285,8 @@ function RescheduleModal({ req, onClose, onConfirm }) {
   const [time, setTime] = useState(req.time);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-slide-up" onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-4 text-lg font-semibold text-navy">Reschedule {req.clientName}</h2>
+    <Modal onClose={onClose} panelClassName="max-w-sm rounded-2xl p-6">
+        <ModalTitle className="mb-4 text-lg font-semibold text-navy">Reschedule {req.clientName}</ModalTitle>
         <div className="flex flex-col gap-4">
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Date</span>
@@ -310,7 +310,6 @@ function RescheduleModal({ req, onClose, onConfirm }) {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </Modal>
   );
 }

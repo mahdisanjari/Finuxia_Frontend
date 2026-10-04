@@ -1,3 +1,4 @@
+import Modal, { ModalTitle } from "./Modal";
 import { useEffect, useState } from "react";
 import { CalendarClock, X } from "lucide-react";
 import { useGoogleCalendar } from "../context/GoogleCalendarContext";
@@ -48,8 +49,7 @@ export default function ReconnectModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-navy/50 p-4 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-slide-up">
+    <Modal onClose={handleDismiss} panelClassName="max-w-sm rounded-2xl p-6" zIndex="z-[60]" dismissOnBackdrop={false}>
         <div className="mb-3 flex items-center justify-between">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-av-amber/10 text-av-amber">
             <CalendarClock size={20} />
@@ -63,9 +63,9 @@ export default function ReconnectModal() {
           </button>
         </div>
 
-        <h2 className="text-lg font-semibold text-navy">
+        <ModalTitle className="text-lg font-semibold text-navy">
           {status === "revoked" ? "Google Calendar access was revoked" : "Google Calendar session expired"}
-        </h2>
+        </ModalTitle>
         <p className="mt-1 text-sm text-slate-500">
           Your meetings are still shown from your last sync, but reconnect to keep them up to date and add new
           events.
@@ -92,7 +92,6 @@ export default function ReconnectModal() {
             {busy ? "Reconnecting..." : "Reconnect"}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

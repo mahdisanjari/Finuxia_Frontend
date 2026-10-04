@@ -1,3 +1,4 @@
+import Modal, { ModalTitle } from "../components/Modal";
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Sparkles, X, Phone, Mail, Send, CalendarDays, CalendarClock, Copy, Check, UserPlus, Pencil, Trash2, Briefcase, Cake, Instagram, BellPlus } from "lucide-react";
@@ -185,15 +186,11 @@ export default function ClientDetail() {
       <AddClientModal open={editOpen} onClose={() => setEditOpen(false)} client={client} />
 
       {confirmDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4 backdrop-blur-sm animate-fade-in"
-          onClick={() => setConfirmDelete(false)}
-        >
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={() => setConfirmDelete(false)} panelClassName="max-w-sm rounded-2xl p-6">
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-av-red/10 text-av-red">
               <Trash2 size={20} />
             </div>
-            <h2 className="text-lg font-semibold text-navy">Delete {fullName}?</h2>
+            <ModalTitle className="text-lg font-semibold text-navy">Delete {fullName}?</ModalTitle>
             <p className="mt-1 text-sm text-slate-500">
               This permanently removes the client and their notes from your pipeline. This can't be undone.
             </p>
@@ -216,8 +213,7 @@ export default function ClientDetail() {
                 Delete
               </button>
             </div>
-          </div>
-        </div>
+          </Modal>
       )}
     </div>
   );
@@ -246,18 +242,15 @@ function AIMessagePanel({ client, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-navy/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-      <div
-        className="h-full w-full max-w-md overflow-y-auto bg-white p-6 shadow-2xl animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal onClose={onClose} variant="drawer" panelClassName="h-full max-w-md overflow-y-auto p-6">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-navy">
+          <ModalTitle className="flex items-center gap-2 text-lg font-semibold text-navy">
             <Sparkles size={17} className="text-gold-dark" />
             Draft Message
-          </h2>
+          </ModalTitle>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-navy"
           >
             <X size={20} />
@@ -297,8 +290,7 @@ function AIMessagePanel({ client, onClose }) {
           {copied ? <Check size={15} /> : <Copy size={15} />}
           {copied ? "Copied" : "Copy Message"}
         </button>
-      </div>
-    </div>
+      </Modal>
   );
 }
 

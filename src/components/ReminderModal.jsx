@@ -1,3 +1,4 @@
+import Modal, { ModalTitle } from "./Modal";
 import { useState } from "react";
 import { X, Trash2 } from "lucide-react";
 import { useClients } from "../context/ClientsContext";
@@ -78,18 +79,11 @@ export default function ReminderModal({ initial, kind = "reminder", lockClient, 
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal onClose={onClose} panelClassName="max-w-sm rounded-2xl p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-navy">
+          <ModalTitle className="text-lg font-semibold text-navy">
             {isFollowUp ? (isEdit ? "Edit Follow-up" : "New Follow-up") : isEdit ? "Edit Reminder" : "New Reminder"}
-          </h2>
+          </ModalTitle>
           <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-navy" aria-label="Close">
             <X size={20} />
           </button>
@@ -202,7 +196,6 @@ export default function ReminderModal({ initial, kind = "reminder", lockClient, 
             </div>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

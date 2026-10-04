@@ -1,3 +1,4 @@
+import Modal, { ModalTitle } from "./Modal";
 import { useState } from "react";
 import { X, CalendarPlus, CalendarX } from "lucide-react";
 import { useClients } from "../context/ClientsContext";
@@ -122,18 +123,11 @@ export default function MeetingModal({ client, stage, onClose }) {
           : "Connect Google Calendar";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-navy/50 p-0 backdrop-blur-sm animate-fade-in sm:items-center sm:p-4"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl animate-slide-up sm:max-w-md sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal onClose={onClose} variant="sheet" panelClassName="max-h-[90vh] overflow-y-auto rounded-t-2xl sm:max-w-md sm:rounded-2xl">
         <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Edit Meeting</p>
-            <h2 className="text-lg font-semibold text-navy">{stage.label}</h2>
+            <ModalTitle className="text-lg font-semibold text-navy">{stage.label}</ModalTitle>
           </div>
           <button
             onClick={onClose}
@@ -236,7 +230,6 @@ export default function MeetingModal({ client, stage, onClose }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState } from "react";
+import { createPortal } from "react-dom";
 
 const ToastContext = createContext(null);
 
@@ -18,7 +19,10 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
-      <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2">
+      {/* A live region, so screen readers announce a message without it taking focus. It sits outside the app's root
+          (portal) and is marked data-keep-visible, so an open dialog does not hide it from assistive technology. */}
+      {createPortal(
+      <div data-keep-visible role="status" aria-live="polite" aria-atomic="false" className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2">
         {toasts.map((t) => (
           <div
             key={t.id}
@@ -39,7 +43,9 @@ export function ToastProvider({ children }) {
             )}
           </div>
         ))}
-      </div>
+      </div>,
+      document.body
+      )}
     </ToastContext.Provider>
   );
 }

@@ -1,3 +1,4 @@
+import Modal, { ModalTitle } from "./Modal";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { HardDrive, CalendarClock, X } from "lucide-react";
@@ -59,10 +60,9 @@ export default function ConnectNudgeModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-navy/50 p-4 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-slide-up">
+    <Modal onClose={() => setDismissed(true)} panelClassName="max-w-sm rounded-2xl p-6" zIndex="z-[60]" dismissOnBackdrop={false}>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-navy">Connect your Google account</h2>
+          <ModalTitle className="text-lg font-semibold text-navy">Connect your Google account</ModalTitle>
           <button
             onClick={() => setDismissed(true)}
             className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-navy"
@@ -115,7 +115,6 @@ export default function ConnectNudgeModal() {
         >
           Skip for now
         </button>
-      </div>
-    </div>
+    </Modal>
   );
 }

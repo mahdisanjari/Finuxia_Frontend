@@ -1,3 +1,4 @@
+import Modal, { ModalTitle } from "./Modal";
 import { useMemo, useState } from "react";
 import { X, Search, Trash2, Check } from "lucide-react";
 import { useClients } from "../context/ClientsContext";
@@ -57,16 +58,9 @@ export default function GroupModal({ group, initialMemberIds, onClose, onDelete 
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-navy/50 p-0 backdrop-blur-sm animate-fade-in sm:items-center sm:p-4"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl animate-slide-up sm:max-w-md sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal onClose={onClose} variant="sheet" panelClassName="flex max-h-[85vh] flex-col overflow-hidden rounded-t-2xl sm:max-w-md sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 className="text-lg font-semibold text-navy">{isEdit ? "Edit Group" : "New Group"}</h2>
+          <ModalTitle className="text-lg font-semibold text-navy">{isEdit ? "Edit Group" : "New Group"}</ModalTitle>
           <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-navy" aria-label="Close">
             <X size={20} />
           </button>
@@ -175,7 +169,6 @@ export default function GroupModal({ group, initialMemberIds, onClose, onDelete 
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

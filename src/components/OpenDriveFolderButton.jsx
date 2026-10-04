@@ -1,3 +1,4 @@
+import Modal, { ModalTitle } from "./Modal";
 import { useState } from "react";
 import { FolderOpen, ExternalLink, HardDrive, X, Link2, AlertTriangle } from "lucide-react";
 import { api, ApiError } from "../lib/api";
@@ -79,14 +80,7 @@ export default function OpenDriveFolderButton({ clientId, clientName }) {
       </button>
 
       {prompt && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4 backdrop-blur-sm animate-fade-in"
-          onClick={() => setPrompt(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-slide-up"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <Modal onClose={() => setPrompt(null)} panelClassName="max-w-sm rounded-2xl p-6">
             <div className="mb-4 flex items-start justify-between">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy/5 text-navy">
                 <HardDrive size={18} />
@@ -102,7 +96,7 @@ export default function OpenDriveFolderButton({ clientId, clientName }) {
 
             {prompt === "connect" ? (
               <>
-                <h2 className="text-base font-semibold text-navy">Connect Google Drive</h2>
+                <ModalTitle className="text-base font-semibold text-navy">Connect Google Drive</ModalTitle>
                 <p className="mt-1.5 text-sm text-slate-500">
                   Connect your Google Drive to store and open {clientName}'s files folder. You'll be sent to Google
                   and brought right back here.
@@ -144,8 +138,7 @@ export default function OpenDriveFolderButton({ clientId, clientName }) {
                 </div>
               </>
             )}
-          </div>
-        </div>
+          </Modal>
       )}
     </>
   );

@@ -562,6 +562,7 @@ export default function SalesPackagePrep() {
                 onClick={() => handleDeleteDraft(p.id, p.insuredPerson || p.policyOwner)}
                 className="flex shrink-0 items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-av-red/10 hover:text-av-red"
                 title="Delete"
+                aria-label="Delete draft"
               >
                 <Trash2 size={15} />
               </button>
