@@ -32,6 +32,8 @@ jobs:
         run: npm run build
         env:
           VITE_API_URL: https://api.example.invalid
+      - name: Bundle check (public pages and first load exclude the signed-in app; size budget)
+        run: npm run check:bundle
       - name: Dependency audit (reported, not yet blocking)
         # xlsx has no fixed release and react-router needs a major upgrade, so
         # this reports rather than fails until those are resolved.

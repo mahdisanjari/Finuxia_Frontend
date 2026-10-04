@@ -62,3 +62,17 @@ VITE_API_URL=http://localhost:4000
 - **`src/test/handlers.js`:** the default API answers (a signed-in advisor with no clients). Override per test with `server.use(http.get(`${API}/api/...`, () => HttpResponse.json(...)))`. A request with no handler fails the test, so nothing ever reaches a real network.
 - **Coverage floor:** set just under what the tests cover today (most of the app is not yet tested). Raise the numbers in `vite.config.js` whenever coverage goes up; never lower them.
 - **CI:** the `test` job in `.github/workflows/ci.yml` runs `npm run test:coverage`. Mark it as a required status check in the repository's branch protection settings.
+
+## Bundle size and code splitting
+
+Every page is loaded on demand (`React.lazy`), so a visitor downloads the shell and the page they open, not the whole app. The public pages (login, register, password reset, privacy, terms, support, the booking page, Zoom docs) never import the signed-in application (`src/AuthenticatedApp.jsx`: the layout, the route table and every page), and the Excel libraries load only when an import or export is actually used. Loading spinners reuse `PageSpinner`: full screen while the app or an out-of-layout page loads, inline inside the layout so the navigation stays put.
+
+| First visit (gzip) | Before | After |
+| --- | --- | --- |
+| Entry JS + CSS (what every visitor downloads) | 166 kB (159.5 JS + 6.6 CSS) | 79 kB |
+| Public booking page | 166 kB | 85 kB |
+| Login page | 166 kB | 81 kB |
+| Largest page chunk, loaded on demand (Sales Package Prep) | in the entry | 14 kB |
+| Excel libraries (only on import / export) | on demand | on demand (unchanged, 464 kB) |
+
+`npm run check:bundle` (run after `npm run build`, and in CI) fails if the first load statically imports the signed-in shell, a page of it or an Excel library, if a public page does, or if the first-load gzip size passes the budget in `scripts/check-bundle.mjs`. Raise the budget only on purpose, with the change that adds the weight. Chunks are same-origin files, so the Content Security Policy (`script-src 'self'`) is unaffected.
