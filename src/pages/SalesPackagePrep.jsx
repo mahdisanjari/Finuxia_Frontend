@@ -178,6 +178,8 @@ export default function SalesPackagePrep() {
 
   const [uploadProgress, setUploadProgress] = useState({});
   const [letterDrafting, setLetterDrafting] = useState(false);
+  // Set when the AI could not deliver and the standard template stands in; stays until the advisor drafts again or edits the text.
+  const [letterNotice, setLetterNotice] = useState("");
   const [disclosureGenerating, setDisclosureGenerating] = useState(false);
   const [supervisionGenerating, setSupervisionGenerating] = useState(false);
 
@@ -434,9 +436,12 @@ export default function SalesPackagePrep() {
   // ---- Letter + Agent Disclosure ----
   const handleDraftLetter = async () => {
     setLetterDrafting(true);
+    setLetterNotice("");
     try {
-      const { text } = await api.draftReasonWhyLetter(packageId);
+      const { text, usedTemplate, notice } = await api.draftReasonWhyLetter(packageId);
       patch({ reasonWhyLetterText: text });
+      // A template that passes for an AI draft is a compliance risk: say so, and don't let it be missed.
+      if (usedTemplate) setLetterNotice(notice || "This is the standard template letter, not an AI-drafted one.");
     } catch (err) {
       addToast(err.message || "Could not draft the Reason Why Letter");
     } finally {
@@ -635,6 +640,8 @@ export default function SalesPackagePrep() {
           onDownloadLetterPdf={handleDownloadLetterPdf}
           onDraftLetter={handleDraftLetter}
           letterDrafting={letterDrafting}
+          letterNotice={letterNotice}
+          onDismissLetterNotice={() => setLetterNotice("")}
           onSaveLetter={handleSaveLetter}
         />
       )}
@@ -1301,7 +1308,7 @@ function LetterPreview({ text }) {
   );
 }
 
-function LetterStep({ data, patch, letterDoc, onDownload, onDownloadLetterPdf, onDraftLetter, letterDrafting, onSaveLetter }) {
+function LetterStep({ data, patch, letterDoc, onDownload, onDownloadLetterPdf, onDraftLetter, letterDrafting, letterNotice, onDismissLetterNotice, onSaveLetter }) {
   const [editing, setEditing] = useState(false);
   return (
     <>
@@ -1326,6 +1333,16 @@ function LetterStep({ data, patch, letterDoc, onDownload, onDownloadLetterPdf, o
             </button>
           )}
         </div>
+
+        {letterNotice && (
+          <div role="alert" className="mb-3 flex items-start gap-2 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2.5 text-xs text-gold-dark">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+            <span className="flex-1">{letterNotice}</span>
+            <button type="button" onClick={onDismissLetterNotice} className="font-semibold underline">
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {editing ? (
           <textarea
