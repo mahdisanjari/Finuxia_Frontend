@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Bug, Sparkles, Send, ShieldCheck } from "lucide-react";
+import useAsync from "../hooks/useAsync";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
-import { getTicketStatusMeta, getTicketTypeMeta } from "../lib/ticketMeta";
+import { ticketStatusMeta, ticketTypeMeta } from "../lib/statusMeta";
 
 function formatDateTime(iso) {
   if (!iso) return "";
@@ -16,29 +17,9 @@ export default function TicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const [ticket, setTicket] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: ticket, loading, error, setData: setTicket } = useAsync(() => api.getTicket(id), [id]);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
-
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.getTicket(id);
-      setTicket(data);
-    } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when the ticket id changes; `load` is a plain function that reads `id`
-  }, [id]);
 
   const handleReply = async (e) => {
     e.preventDefault();
@@ -75,8 +56,8 @@ export default function TicketDetail() {
     );
   }
 
-  const statusMeta = getTicketStatusMeta(ticket.status);
-  const typeMeta = getTicketTypeMeta(ticket.type);
+  const statusMeta = ticketStatusMeta(ticket.status);
+  const typeMeta = ticketTypeMeta(ticket.type);
   const TypeIcon = ticket.type === "feature" ? Sparkles : Bug;
 
   return (

@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Lock, Mail, LogOut } from "lucide-react";
-import Logo from "../components/Logo";
+import Logo from "../components/layout/Logo";
 import { useAuth } from "../context/AuthContext";
 import { formatDate } from "../lib/followUp";
 

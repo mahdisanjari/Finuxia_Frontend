@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { useToast } from "./ToastContext";
-import Modal from "../components/Modal";
+import Modal from "../components/ui/Modal";
 import { renderWithProviders, screen, userEvent } from "../test/utils";
 
 function Trigger({ onAction }) {

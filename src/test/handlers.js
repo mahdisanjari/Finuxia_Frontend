@@ -46,6 +46,8 @@ export const defaultHandlers = [
     HttpResponse.json({ clientRef: params.ref, enabled: false, frequency: "monthly", tone: "friendly" })
   ),
   http.put(`${API}/api/state`, () => HttpResponse.json({})),
+  http.get(`${API}/api/billing/plans`, () => HttpResponse.json({ plans: [], stripeConfigured: false, purchasesOpen: true })),
+  http.get(`${API}/api/tickets`, () => HttpResponse.json([])),
   http.get(`${API}/api/reminders`, () => HttpResponse.json([])),
   http.get(`${API}/api/booking/requests`, () => HttpResponse.json([])),
   http.get(`${API}/api/calendar-connect/status`, () =>

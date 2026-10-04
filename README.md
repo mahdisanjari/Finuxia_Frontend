@@ -76,3 +76,10 @@ Every page is loaded on demand (`React.lazy`), so a visitor downloads the shell 
 | Excel libraries (only on import / export) | on demand | on demand (unchanged, 464 kB) |
 
 `npm run check:bundle` (run after `npm run build`, and in CI) fails if the first load statically imports the signed-in shell, a page of it or an Excel library, if a public page does, or if the first-load gzip size passes the budget in `scripts/check-bundle.mjs`. Raise the budget only on purpose, with the change that adds the weight. Chunks are same-origin files, so the Content Security Policy (`script-src 'self'`) is unaffected.
+
+## Code layout and shared UI
+
+- `src/components/` is grouped by domain: `layout/` (shell, navigation, guards, error boundaries), `clients/`, `booking/`, `billing/` (plan gate, upgrade prompt, AI usage), `integrations/` (Google Calendar / Drive, Zoom), `account/`, `tickets/`, `documents/`, and `ui/`.
+- `src/components/ui/` is the shared UI: the primitives `Button`, `Input`, `Select`, `Field`, `Card`, `Badge` and `Table` (built on the brand colour tokens in `tailwind.config.js`), plus `Modal`, `Switch`, `SearchableSelect`, `TimeInput`, `PageSpinner` and `ErrorNotice`. Import them from `components/ui`. New screens should use them rather than writing the utility classes inline; existing screens move over as they are touched (the migration is incremental).
+- `src/lib/statusMeta.js` is the one place status colours and labels live (booking requests, documents, tickets); each status is a label plus a tone, and a tone is a badge style.
+- `src/hooks/useAsync.js` loads data for a page (`const { data, loading, error, reload, setData } = useAsync(() => api.getX(), [deps])`): the effect, loading flag, error and stale-answer guard in one place.

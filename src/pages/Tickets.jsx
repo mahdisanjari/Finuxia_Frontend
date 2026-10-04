@@ -1,34 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LifeBuoy, Plus, MessageSquare, Bug, Sparkles } from "lucide-react";
+import useAsync from "../hooks/useAsync";
 import { api } from "../lib/api";
 import { formatDate } from "../lib/followUp";
-import { getTicketStatusMeta, getTicketTypeMeta } from "../lib/ticketMeta";
-import NewTicketModal from "../components/NewTicketModal";
+import { ticketStatusMeta, ticketTypeMeta } from "../lib/statusMeta";
+import { Badge, Button } from "../components/ui";
+import NewTicketModal from "../components/tickets/NewTicketModal";
 
 export default function Tickets() {
   const navigate = useNavigate();
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: tickets, loading, error } = useAsync(() => api.getTickets(), [], { initialData: [] });
   const [modalOpen, setModalOpen] = useState(false);
-
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.getTickets();
-      setTickets(data);
-    } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -42,13 +25,10 @@ export default function Tickets() {
             <p className="text-sm text-slate-500">Report a bug or ask for a feature — we read every one.</p>
           </div>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-gold px-4 py-2 text-sm font-semibold text-navy transition hover:bg-gold-light"
-        >
+        <Button variant="gold" onClick={() => setModalOpen(true)}>
           <Plus size={16} strokeWidth={2.5} />
           New Ticket
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -68,8 +48,8 @@ export default function Tickets() {
       ) : (
         <div className="flex flex-col gap-2.5">
           {tickets.map((t) => {
-            const statusMeta = getTicketStatusMeta(t.status);
-            const typeMeta = getTicketTypeMeta(t.type);
+            const statusMeta = ticketStatusMeta(t.status);
+            const typeMeta = ticketTypeMeta(t.type);
             const TypeIcon = t.type === "feature" ? Sparkles : Bug;
             return (
               <button
@@ -92,7 +72,7 @@ export default function Tickets() {
                     )}
                   </p>
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusMeta.badge}`}>{statusMeta.label}</span>
+                <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
               </button>
             );
           })}

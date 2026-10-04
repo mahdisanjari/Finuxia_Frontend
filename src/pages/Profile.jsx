@@ -4,12 +4,12 @@ import { Camera, LogOut, Trash2, User } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { api } from "../lib/api";
-import GoogleCalendarPanel from "../components/GoogleCalendarPanel";
-import GoogleDrivePanel from "../components/GoogleDrivePanel";
-import ZoomPanel from "../components/ZoomPanel";
-import AvailabilityPanel from "../components/AvailabilityPanel";
-import ComplianceProfilePanel from "../components/ComplianceProfilePanel";
-import AiUsagePanel from "../components/AiUsagePanel";
+import GoogleCalendarPanel from "../components/integrations/GoogleCalendarPanel";
+import GoogleDrivePanel from "../components/integrations/GoogleDrivePanel";
+import ZoomPanel from "../components/integrations/ZoomPanel";
+import AvailabilityPanel from "../components/booking/AvailabilityPanel";
+import ComplianceProfilePanel from "../components/account/ComplianceProfilePanel";
+import AiUsagePanel from "../components/billing/AiUsagePanel";
 
 const TABS = [
   { key: "account", label: "Account" },

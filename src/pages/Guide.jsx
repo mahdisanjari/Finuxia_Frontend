@@ -1,35 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronDown, BookOpen, LifeBuoy } from "lucide-react";
+import useAsync from "../hooks/useAsync";
 import { api } from "../lib/api";
 
 export default function Guide() {
-  const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [openId, setOpenId] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await api.getGuides();
-        if (!cancelled) {
-          setGroups(data);
-          // open the very first question by default
-          setOpenId(data?.[0]?.items?.[0]?.id ?? null);
-        }
-      } catch (err) {
-        if (!cancelled) setError(err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { data: groups, loading, error } = useAsync(() => api.getGuides(), [], { initialData: [] });
+  // undefined = not chosen yet: the very first question is open by default
+  const [openId, setOpenId] = useState(undefined);
+  const shownId = openId === undefined ? (groups?.[0]?.items?.[0]?.id ?? null) : openId;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -64,7 +42,7 @@ export default function Guide() {
             <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-gold-dark">{group.category}</h2>
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               {group.items.map((item, i) => {
-                const open = openId === item.id;
+                const open = shownId === item.id;
                 return (
                   <div key={item.id} className={i > 0 ? "border-t border-slate-100" : ""}>
                     <button

@@ -1,41 +1,29 @@
-import { useEffect, useState } from "react";
-import { FileStack, Plus, Download, FileText, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { useState } from "react";
+import { FileStack, Plus, Download, FileText } from "lucide-react";
+import useAsync from "../hooks/useAsync";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
-import SubmitDocumentModal from "../components/SubmitDocumentModal";
-
-const STATUS_META = {
-  pending: { label: "Pending review", badge: "bg-av-amber/10 text-av-amber", icon: Clock },
-  approved: { label: "Approved", badge: "bg-av-green/10 text-av-green", icon: CheckCircle2 },
-  rejected: { label: "Rejected", badge: "bg-av-red/10 text-av-red", icon: XCircle },
-};
+import { documentStatusMeta } from "../lib/statusMeta";
+import { Badge, Button } from "../components/ui";
+import SubmitDocumentModal from "../components/documents/SubmitDocumentModal";
 
 export default function Documents() {
   const { addToast } = useToast();
-  const [documents, setDocuments] = useState([]);
-  const [mine, setMine] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    data: { documents, mine },
+    loading,
+    error,
+    reload: load,
+  } = useAsync(
+    async () => {
+      const [documents, mine] = await Promise.all([api.getDocuments(), api.getMyDocuments()]);
+      return { documents, mine };
+    },
+    [],
+    { initialData: { documents: [], mine: [] } }
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
-
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [docs, own] = await Promise.all([api.getDocuments(), api.getMyDocuments()]);
-      setDocuments(docs);
-      setMine(own);
-    } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
 
   const handleDownload = async (doc) => {
     setDownloadingId(doc.id);
@@ -64,13 +52,10 @@ export default function Documents() {
             <p className="text-sm text-slate-500">Client-education guides advisors can browse and download.</p>
           </div>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-gold px-4 py-2 text-sm font-semibold text-navy transition hover:bg-gold-light"
-        >
+        <Button variant="gold" onClick={() => setModalOpen(true)}>
           <Plus size={16} strokeWidth={2.5} />
           Submit Document
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -89,7 +74,7 @@ export default function Documents() {
               <h2 className="mb-2.5 text-sm font-semibold text-navy">My Submissions</h2>
               <div className="flex flex-col gap-2.5">
                 {pendingOrRejectedMine.map((doc) => {
-                  const meta = STATUS_META[doc.status] ?? STATUS_META.pending;
+                  const meta = documentStatusMeta(doc.status);
                   const StatusIcon = meta.icon;
                   return (
                     <div key={doc.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -98,10 +83,9 @@ export default function Documents() {
                           <p className="truncate text-sm font-semibold text-navy">{doc.title}</p>
                           <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{doc.summary}</p>
                         </div>
-                        <span className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${meta.badge}`}>
-                          <StatusIcon size={11} />
+                        <Badge tone={meta.tone} icon={StatusIcon}>
                           {meta.label}
-                        </span>
+                        </Badge>
                       </div>
                       {doc.status === "rejected" && doc.rejectionNote && (
                         <p className="mt-2 rounded-lg bg-av-red/5 px-2.5 py-1.5 text-xs text-av-red">{doc.rejectionNote}</p>

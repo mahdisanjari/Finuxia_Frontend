@@ -1,16 +1,16 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import AddClientModal from "./AddClientModal";
-import BookingLinkModal from "./BookingLinkModal";
-import FollowUpRuleModal from "./FollowUpRuleModal";
-import GroupModal from "./GroupModal";
-import MeetingModal from "./MeetingModal";
-import NewTicketModal from "./NewTicketModal";
-import RescheduleModal from "./RescheduleModal";
-import ReminderModal from "./ReminderModal";
-import SubmitDocumentModal from "./SubmitDocumentModal";
-import ConnectNudgeModal from "./ConnectNudgeModal";
-import ReconnectModal from "./ReconnectModal";
+import AddClientModal from "./clients/AddClientModal";
+import BookingLinkModal from "./booking/BookingLinkModal";
+import FollowUpRuleModal from "./clients/FollowUpRuleModal";
+import GroupModal from "./clients/GroupModal";
+import MeetingModal from "./clients/MeetingModal";
+import NewTicketModal from "./tickets/NewTicketModal";
+import RescheduleModal from "./clients/RescheduleModal";
+import ReminderModal from "./clients/ReminderModal";
+import SubmitDocumentModal from "./documents/SubmitDocumentModal";
+import ConnectNudgeModal from "./integrations/ConnectNudgeModal";
+import ReconnectModal from "./integrations/ReconnectModal";
 import { renderWithProviders, screen, userEvent, waitFor } from "../test/utils";
 
 const client = { id: "c_1", first: "Ada", last: "Lovelace", stages: {}, notes: [], files: [], interests: [], meeting: null };
@@ -71,12 +71,14 @@ describe("the two nudges that need an answer", () => {
 });
 
 describe("no hand-rolled dialogs are left", () => {
-  const read = (f) => readFileSync(`src/${f}`, "utf8");
-  const files = ["components", "pages"].flatMap((dir) =>
-    readdirSync(`src/${dir}`)
-      .filter((n) => /\.jsx$/.test(n) && !/\.test\./.test(n))
-      .map((n) => `${dir}/${n}`)
-  );
+  const read = (f) => readFileSync(f, "utf8");
+  const walk = (dir) =>
+    readdirSync(dir).flatMap((name) => {
+      const path = `${dir}/${name}`;
+      if (statSync(path).isDirectory()) return walk(path);
+      return /\.jsx$/.test(name) && !/\.test\./.test(name) ? [path] : [];
+    });
+  const files = [...walk("src/components"), ...walk("src/pages")];
 
   it("the eleven modals use the shared primitive and carry no backdrop markup of their own", () => {
     for (const name of [
@@ -92,15 +94,17 @@ describe("no hand-rolled dialogs are left", () => {
       "RescheduleModal",
       "BookingLinkModal",
     ]) {
-      const code = read(`components/${name}.jsx`);
-      expect(code, name).toContain('from "./Modal"');
+      const file = files.find((f) => f.endsWith(`/${name}.jsx`));
+      expect(file, name).toBeTruthy();
+      const code = read(file);
+      expect(code, name).toMatch(/from "(\.\/|\.\.\/)(ui\/)?Modal"/);
       expect(code, name).toContain("<Modal");
       expect(code, name).not.toContain("fixed inset-0");
     }
   });
 
   it("only the primitive draws a full-screen overlay: every dialog in the app is a <Modal>", () => {
-    const offenders = files.filter((f) => f !== "components/Modal.jsx" && read(f).includes("fixed inset-0"));
+    const offenders = files.filter((f) => !f.endsWith("/ui/Modal.jsx") && read(f).includes("fixed inset-0"));
     expect(offenders).toEqual([]);
   });
 });

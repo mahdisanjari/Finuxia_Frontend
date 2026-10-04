@@ -1,16 +1,12 @@
-import Modal, { ModalTitle } from "../components/Modal";
+import Modal, { ModalTitle } from "../components/ui/Modal";
 import { useEffect, useState } from "react";
 import { CalendarClock, Check, X, RefreshCcw, Clock, Mail, Phone, AlertTriangle } from "lucide-react";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
 import { useGoogleCalendar } from "../context/GoogleCalendarContext";
-import TimeInput from "../components/TimeInput";
-
-const STATUS_META = {
-  pending: { label: "Pending", badge: "bg-av-amber/10 text-av-amber" },
-  confirmed: { label: "Confirmed", badge: "bg-av-green/10 text-av-green" },
-  cancelled: { label: "Cancelled", badge: "bg-slate-100 text-slate-500" },
-};
+import TimeInput from "../components/ui/TimeInput";
+import { Badge } from "../components/ui";
+import { bookingStatusMeta } from "../lib/statusMeta";
 
 function formatTimeLabel(time) {
   const [h, m] = time.split(":").map(Number);
@@ -204,14 +200,16 @@ export default function BookingRequests() {
 }
 
 function RequestCard({ req, busy, onApprove, onCancel, onReschedule }) {
-  const meta = STATUS_META[req.status] ?? STATUS_META.pending;
+  const meta = bookingStatusMeta(req.status);
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-navy">{req.clientName}</p>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${meta.badge}`}>{meta.label}</span>
+            <Badge tone={meta.tone} size="sm">
+              {meta.label}
+            </Badge>
           </div>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
             <Clock size={12} />

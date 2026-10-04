@@ -1,7 +1,8 @@
-import Switch from "../components/Switch";
+import { inputClass } from "../components/ui";
+import Switch from "../components/ui/Switch";
 import useAiUsage from "../hooks/useAiUsage";
-import AiUsageInline from "../components/AiUsageInline";
-import AiBlockedNotice from "../components/AiBlockedNotice";
+import AiUsageInline from "../components/billing/AiUsageInline";
+import AiBlockedNotice from "../components/billing/AiBlockedNotice";
 import { isAiBlocked } from "../lib/aiUsage";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -20,7 +21,7 @@ import {
   Sparkles,
   ExternalLink,
 } from "lucide-react";
-import SearchableSelect from "../components/SearchableSelect";
+import SearchableSelect from "../components/ui/SearchableSelect";
 import { useClients } from "../context/ClientsContext";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -165,9 +166,6 @@ const emptyData = () => ({
   reasonWhyLetterText: "",
   supervisionConfirmations: emptySupervisionConfirmations(),
 });
-
-const inputClass =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-navy outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30";
 
 export default function SalesPackagePrep() {
   const { user } = useAuth();

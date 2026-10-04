@@ -6,7 +6,7 @@ import { ClientsProvider } from "./context/ClientsContext";
 import { ToastProvider } from "./context/ToastContext";
 import { AuthProvider } from "./context/AuthContext";
 import { GoogleCalendarProvider } from "./context/GoogleCalendarContext";
-import ErrorBoundary from "./components/ErrorBoundary";
+import ErrorBoundary from "./components/layout/ErrorBoundary";
 import "./index.css";
 
 // Error tracking (OPS-01) plugs in here: setErrorReporter((error, context) => tracker.capture(error, context)).
