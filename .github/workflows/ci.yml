@@ -6,6 +6,19 @@ on:
   pull_request:
 
 jobs:
+  # Required check: make "test" a required status check for main in the repository's branch protection settings.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Test (with the coverage floor)
+        run: npm run test:coverage
+
   build:
     runs-on: ubuntu-latest
     steps:
