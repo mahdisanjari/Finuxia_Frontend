@@ -122,8 +122,8 @@ function firstErrorMessage(data) {
   return null;
 }
 
-async function request(path, { method = "GET", body } = {}) {
-  const headers = { "Content-Type": "application/json" };
+async function request(path, { method = "GET", body, headers: extraHeaders } = {}) {
+  const headers = { "Content-Type": "application/json", ...extraHeaders };
 
   let res;
   try {
@@ -464,7 +464,14 @@ export const api = {
   // Checkout once configured, an instant "mock" purchase until then).
   getBillingPlans: () => request("/api/billing/plans"),
   getMyBillingStatus: () => request("/api/billing/me"),
-  purchasePlan: (planId) => request("/api/billing/purchase", { method: "POST", body: { planId } }),
+  // The idempotency key makes a double click or a retry after a slow response act once: the
+  // server replays the first response instead of creating a second pending payment.
+  purchasePlan: (planId, idempotencyKey) =>
+    request("/api/billing/purchase", {
+      method: "POST",
+      body: { planId },
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+    }),
   cancelSubscription: () => request("/api/billing/cancel", { method: "POST" }),
 
   // Booking (Calendly-style) — an advisor's shared availability, their
