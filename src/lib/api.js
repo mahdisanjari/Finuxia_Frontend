@@ -464,8 +464,12 @@ export const api = {
   // Checkout once configured, an instant "mock" purchase until then).
   getBillingPlans: () => request("/api/billing/plans"),
   getMyBillingStatus: () => request("/api/billing/me"),
-  purchasePlan: (planId) => request("/api/billing/purchase", { method: "POST", body: { planId } }),
-  cancelSubscription: () => request("/api/billing/cancel", { method: "POST" }),
+  // The provider sends the customer back to these pages, which confirm the payment with the server (see PaymentReturn).
+  purchasePlan: (planId) =>
+    request("/api/billing/purchase", {
+      method: "POST",
+      body: { planId, successUrl: `${window.location.origin}/billing/success`, cancelUrl: `${window.location.origin}/billing/cancel` },
+    }),
 
   // Booking (Calendly-style) — an advisor's shared availability, their
   // (possibly several) named booking links, and the request queue are all

@@ -38,6 +38,7 @@ const NAV_MENUS = [
     label: "Meetings",
     icon: CalendarClock,
     items: [
+      { to: "/meetings", label: "Calendar Meetings", icon: CalendarDays },
       { to: "/booking-links", label: "Booking Links", icon: Link2 },
       { to: "/booking-requests", label: "Booking Requests", icon: CalendarClock },
     ],
@@ -96,7 +97,7 @@ export default function Layout() {
         </div>
 
         <div className="border-t border-white/5">
-          <nav className="scrollbar-none mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-1.5 sm:px-6">
+          <nav className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-1.5 sm:px-6">
             {NAV_LINKS.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Sparkles, ShieldCheck } from "lucide-react";
+import { rememberPlanBeforeCheckout } from "../lib/checkout";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { api } from "../lib/api";
@@ -42,6 +43,7 @@ export default function Billing() {
         await refreshBilling();
         addToast(`You're now on the ${plan.name} plan (test purchase — no real charge, Stripe isn't connected yet).`);
       } else if (result.checkoutUrl) {
+        rememberPlanBeforeCheckout(currentPlanKey); // so the return page can tell that the purchase really went through
         window.location.href = result.checkoutUrl;
       }
     } catch (err) {
