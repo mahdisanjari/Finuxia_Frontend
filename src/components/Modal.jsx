@@ -140,6 +140,7 @@ export default function Modal({
     <TitleContext.Provider value={titleId}>
       {/* The overlay closes on a click that both starts and ends on the dark area (not on a drag out of a text field). */}
       <div
+        role="presentation"
         className={`fixed inset-0 ${zIndex} flex bg-navy/50 backdrop-blur-sm animate-fade-in ${placement}`}
         onMouseDown={(e) => {
           pressedOnBackdrop.current = e.target === e.currentTarget;

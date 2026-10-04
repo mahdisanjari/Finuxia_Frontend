@@ -21,10 +21,14 @@ export function generateSlotTimes({ startHour = 0, endHour = 24, stepMinutes = 3
  * runs into it (or a busy block shorter than the slot but inside it):
  *   requestedStart < busyEnd  AND  requestedEnd > busyStart
  *
- * @param {string} date - "YYYY-MM-DD", local
- * @param {string[]} times - candidate "HH:MM" labels, e.g. from generateSlotTimes()
- * @param {number} durationMinutes - the meeting length each slot represents
- * @param {{start:string,end:string}[]} busyIntervals - ISO datetime ranges from FreeBusy
+ * @param {{
+ *   date: string,
+ *   times: string[],
+ *   durationMinutes: number,
+ *   busyIntervals?: {start:string,end:string}[]
+ * }} args
+ *   date: "YYYY-MM-DD", local; times: candidate "HH:MM" labels, e.g. from generateSlotTimes();
+ *   durationMinutes: the meeting length each slot represents; busyIntervals: ISO datetime ranges from FreeBusy
  * @returns {{time:string, startISO:string, endISO:string, available:boolean, reason?:'CALENDAR_BUSY'}[]}
  */
 export function buildTimeSlots({ date, times, durationMinutes, busyIntervals = [] }) {

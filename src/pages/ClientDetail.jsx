@@ -228,6 +228,7 @@ function AIMessagePanel({ client, onClose }) {
   useEffect(() => {
     setMessage(generateFollowUpMessage(client, tone));
     setCopied(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rewrite the draft when the tone or the client changes, not when another field of the client does (it would overwrite edits to the message)
   }, [tone, client.id]);
 
   const handleCopy = async () => {

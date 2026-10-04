@@ -43,6 +43,11 @@ const FALLBACKS = {
 };
 
 /** The message for a failed request: the server's sentence if it sent one, else a sensible one for the status. */
+/**
+ * @param {number} status
+ * @param {unknown} serverMessage
+ * @param {{ retryAfter?: number | null, path?: string }} [options]
+ */
 export function messageForStatus(status, serverMessage, { retryAfter = null, path = "" } = {}) {
   const sent = typeof serverMessage === "string" ? serverMessage.trim() : "";
   if (status === 429) {

@@ -1,3 +1,4 @@
+import Switch from "../components/Switch";
 import useAiUsage from "../hooks/useAiUsage";
 import AiUsageInline from "../components/AiUsageInline";
 import AiBlockedNotice from "../components/AiBlockedNotice";
@@ -219,7 +220,7 @@ export default function SalesPackagePrep() {
       }
     }
     boot();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boot once per package id; startNewDraft and addToast are not stable and must not retrigger it
   }, [packageId]);
 
   useEffect(() => {
@@ -900,11 +901,7 @@ function ClientStep({ data, patch }) {
       <Card title="Financial Situation" subtitle="Mortgage and other debt obligations.">
         <div className="mb-4 flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5">
           <span className="text-sm text-navy">Homeowner?</span>
-          <label className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center">
-            <input type="checkbox" checked={data.homeowner} onChange={(e) => patch({ homeowner: e.target.checked })} className="peer sr-only" />
-            <span className="absolute inset-0 rounded-full bg-slate-200 transition-colors peer-checked:bg-gold" />
-            <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
-          </label>
+          <Switch label="Homeowner?" checked={data.homeowner} onChange={(e) => patch({ homeowner: e.target.checked })} />
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {data.homeowner && (
@@ -1687,7 +1684,6 @@ function DocReviewCard({ packageId, doc, version, progress, onUpload, onDownload
 
 function ReviewStep({
   data,
-  patch,
   packageId,
   docVersion,
   uploadProgress,
@@ -1695,7 +1691,6 @@ function ReviewStep({
   documents,
   onUpload,
   onDownload,
-  onSaveLetter,
   confirmChecked,
   setConfirmChecked,
   onGenerate,

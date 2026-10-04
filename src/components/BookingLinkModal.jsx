@@ -1,3 +1,4 @@
+import Switch from "./Switch";
 import Modal, { ModalTitle } from "./Modal";
 import { useState } from "react";
 import { X, Plus, Trash2, GripVertical, CalendarClock, Link2 } from "lucide-react";
@@ -228,16 +229,9 @@ export default function BookingLinkModal({ link, onClose, onSave, onDelete }) {
 
           <div className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5">
             <span className="text-sm text-navy">Allow guests</span>
-            <label className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center">
-              <input
-                type="checkbox"
+            <Switch label="Allow guests"
                 checked={guestsAllowed}
-                onChange={(e) => setGuestsAllowed(e.target.checked)}
-                className="peer sr-only"
-              />
-              <span className="absolute inset-0 rounded-full bg-slate-200 transition-colors peer-checked:bg-gold" />
-              <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
-            </label>
+                onChange={(e) => setGuestsAllowed(e.target.checked)} />
           </div>
           {guestsAllowed && (
             <p className="-mt-2 text-xs text-slate-400">

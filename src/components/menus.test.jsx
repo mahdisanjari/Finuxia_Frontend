@@ -4,7 +4,7 @@ import Layout from "./Layout";
 import ProtectedRoute from "./ProtectedRoute";
 import { renderWithProviders, screen, userEvent, waitFor, within } from "../test/utils";
 
-function Shell({ children }) {
+function Shell() {
   return (
     <Routes>
       <Route

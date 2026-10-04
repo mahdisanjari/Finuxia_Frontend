@@ -37,7 +37,7 @@ export default function TicketDetail() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when the ticket id changes; `load` is a plain function that reads `id`
   }, [id]);
 
   const handleReply = async (e) => {

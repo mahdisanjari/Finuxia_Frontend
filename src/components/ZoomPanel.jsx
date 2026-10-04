@@ -57,7 +57,7 @@ export default function ZoomPanel() {
     const next = new URLSearchParams(searchParams);
     next.delete("zoomConnect");
     setSearchParams(next, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only: consumes the OAuth return parameter once (then removes it from the URL)
   }, []);
 
   const handleConnect = async () => {

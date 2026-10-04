@@ -70,7 +70,7 @@ export default function BookingRequests() {
             attendees: attendees.length ? attendees : undefined,
           });
           await api.setBookingRequestGoogleEvent(req.id, created.id);
-        } catch (err) {
+        } catch {
           addToast("Confirmed, but couldn't add it to Google Calendar — add it manually.");
         }
       } else if (calStatus !== "connected") {

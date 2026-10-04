@@ -83,7 +83,7 @@ export default function Import() {
         dateNF: "yyyy-mm-dd",
       });
       setParsedRows(rows);
-    } catch (err) {
+    } catch {
       setParseError("Could not read this file. Make sure it's a valid .xlsx or .csv export.");
       setParsedRows(null);
     } finally {

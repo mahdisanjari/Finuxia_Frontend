@@ -89,10 +89,17 @@ async function authedFetch(path, init = {}) {
   return res;
 }
 
+/** A refused request. `data` is the parsed error body (see ErrorBody in types.d.ts). */
 export class ApiError extends Error {
+  /**
+   * @param {string} message
+   * @param {{ status?: number, data?: any, retryAfter?: number | null, path?: string }} [details]
+   */
   constructor(message, { status, data, retryAfter = null, path = "" } = {}) {
     super(message);
     this.name = "ApiError";
+    // Set by the calendar hooks when a 409 means the Google connection needs to be redone.
+    this.needsReconnect = false;
     this.status = status;
     // Seconds the server asked us to wait (Retry-After on a 429), the machine-readable `code` it sent, and the request path.
     this.retryAfter = retryAfter;
@@ -147,6 +154,12 @@ async function apiErrorFromResponse(res, path) {
   return apiErrorFrom(res.status, data, path, res.headers.get("Retry-After"));
 }
 
+/**
+ * @param {string} path
+ * @param {{ method?: string, body?: unknown, auth?: boolean }} [options] `auth` is accepted for the public endpoints but
+ *   unused: the session cookie is always sent.
+ * @returns {Promise<any>} the parsed JSON body (null for a 204); the public methods below narrow it with their own return types.
+ */
 async function request(path, { method = "GET", body } = {}) {
   const headers = { "Content-Type": "application/json" };
 
@@ -314,35 +327,47 @@ async function requestMultipartDownload(path, formData, fallbackName) {
 
 export const api = {
   // auth
+  /** @returns {Promise<import("./types").SessionResponse>} */
   register: (payload) => request("/api/auth/register", { method: "POST", body: payload }),
+  /** @returns {Promise<import("./types").SessionResponse>} */
   login: (identifier, password) =>
     request("/api/auth/login", { method: "POST", body: { identifier, password } }),
   logout: () => request("/api/auth/logout", { method: "POST" }),
+  /** @returns {Promise<import("./types").SessionResponse>} */
   me: () => request("/api/auth/me"),
+  /** @returns {Promise<import("./types").SessionResponse>} */
   updateMe: (patch) => request("/api/auth/me", { method: "PATCH", body: patch }),
+  /** @returns {Promise<import("./types").SessionResponse>} */
   updateComplianceProfile: (patch) => request("/api/auth/me/compliance-profile", { method: "PATCH", body: patch }),
+  /** @returns {Promise<import("./types").SessionResponse>} */
   uploadAvatar: (file) => {
     const form = new FormData();
     form.append("file", file);
     return requestMultipart("/api/auth/me/avatar", form);
   },
+  /** @returns {Promise<import("./types").SessionResponse>} */
   deleteAvatar: () => request("/api/auth/me/avatar", { method: "DELETE" }),
   avatarUrl: (userId) => `${BASE_URL}/api/auth/avatar/${userId}`,
   forgotPassword: (email) =>
     request("/api/auth/forgot-password", { method: "POST", body: { email } }),
   resetPassword: (uid, token, password) =>
     request("/api/auth/reset-password", { method: "POST", body: { uid, token, password } }),
+  /** @returns {Promise<import("./types").SessionResponse>} */
   changePassword: (currentPassword, newPassword) =>
     request("/api/auth/change-password", { method: "POST", body: { currentPassword, newPassword } }),
 
   // clients (owner-scoped collection sync)
+  /** @returns {Promise<import("./types").Client[]>} */
   getClients: () => request("/api/clients"),
+  /** @returns {Promise<import("./types").Client>} */
   createClient: (client) => request("/api/clients", { method: "POST", body: client }),
+  /** @returns {Promise<import("./types").Client>} */
   patchClient: (ref, body) => request(`/api/clients/${encodeURIComponent(ref)}`, { method: "PATCH", body }),
   deleteClient: (ref) => request(`/api/clients/${encodeURIComponent(ref)}`, { method: "DELETE" }),
   importClients: (clients) => request("/api/clients/import", { method: "POST", body: { clients } }),
 
   // per-user daily-task state
+  /** @returns {Promise<import("./types").DailyState>} */
   getState: () => request("/api/state"),
   putState: (doneTasks) => request("/api/state", { method: "PUT", body: { doneTasks } }),
   putGroups: (groups) => request("/api/state", { method: "PUT", body: { groups } }),
@@ -355,23 +380,33 @@ export const api = {
 
   // support tickets (bug reports / feature requests) — own tickets only;
   // status changes and admin replies happen in the Django admin panel.
+  /** @returns {Promise<import("./types").Ticket[]>} */
   getTickets: () => request("/api/tickets"),
+  /** @returns {Promise<import("./types").Ticket>} */
   getTicket: (id) => request(`/api/tickets/${id}`),
+  /** @returns {Promise<import("./types").Ticket>} */
   createTicket: (payload) => request("/api/tickets", { method: "POST", body: payload }),
+  /** @returns {Promise<import("./types").Ticket>} */
   addTicketComment: (id, message) => request(`/api/tickets/${id}/comments`, { method: "POST", body: { message } }),
 
   // reminders / to-do list (owner-scoped, never touches meetings/analytics)
+  /** @returns {Promise<import("./types").Reminder[]>} */
   getReminders: () => request("/api/reminders"),
+  /** @returns {Promise<import("./types").Reminder>} */
   createReminder: (payload) => request("/api/reminders", { method: "POST", body: payload }),
+  /** @returns {Promise<import("./types").Reminder>} */
   updateReminder: (id, patch) => request(`/api/reminders/${id}`, { method: "PATCH", body: patch }),
   deleteReminder: (id) => request(`/api/reminders/${id}`, { method: "DELETE" }),
   deleteReminderSeries: (seriesId) => request(`/api/reminders/series/${encodeURIComponent(seriesId)}`, { method: "DELETE" }),
+  /** @returns {Promise<import("./types").Reminder>} */
   setReminderStatus: (id, status) => request(`/api/reminders/${id}/status`, { method: "POST", body: { status } }),
 
   // Automated follow-ups — a per-client rule ("keep emailing them every N
   // days, AI-drafted, until I turn it off"). Sending itself stays a no-op
   // server-side until real SMTP credentials are configured.
+  /** @returns {Promise<import("./types").FollowUpRule>} */
   getFollowUpRule: (clientRef) => request(`/api/followups/rules/${encodeURIComponent(clientRef)}`),
+  /** @returns {Promise<import("./types").FollowUpRule>} */
   setFollowUpRule: (clientRef, payload) =>
     request(`/api/followups/rules/${encodeURIComponent(clientRef)}`, { method: "PUT", body: payload }),
 
@@ -401,7 +436,9 @@ export const api = {
   // Client documents — browse/download approved ones, submit new ones for
   // admin review, and get an AI-suggested topic/summary/keywords for a PDF
   // before submitting.
+  /** @returns {Promise<import("./types").Document[]>} */
   getDocuments: () => request("/api/documents"),
+  /** @returns {Promise<import("./types").Document[]>} */
   getMyDocuments: () => request("/api/documents/mine"),
   submitDocument: ({ title, summary, keywords, file }) => {
     const form = new FormData();
@@ -456,13 +493,17 @@ export const api = {
 
   // Billing / subscription plans — modules, plans, purchase (real Stripe
   // Checkout once configured, an instant "mock" purchase until then).
+  /** @returns {Promise<import("./types").PlansResponse>} */
   getBillingPlans: () => request("/api/billing/plans"),
+  /** @returns {Promise<import("./types").BillingStatus>} */
   getMyBillingStatus: () => request("/api/billing/me"),
   // The advisor's AI usage this billing period, in credits: used / remaining, reset date, per-feature
   // breakdown, wallet balance and the recent calls.
+  /** @returns {Promise<import("./types").AiUsage>} */
   getAiUsage: () => request("/api/billing/ai-usage"),
   topUpWallet: (amountCents) => request("/api/billing/wallet/topup", { method: "POST", body: { amountCents } }),
   // The provider sends the customer back to these pages, which confirm the payment with the server (see PaymentReturn).
+  /** @returns {Promise<import("./types").PurchaseResponse>} */
   purchasePlan: (planId) =>
     request("/api/billing/purchase", {
       method: "POST",
@@ -498,6 +539,7 @@ export const api = {
 
   // Calendar event data — proxied through the server-side connection above,
   // so the browser never needs its own Google token/login at all.
+  /** @param {{ timeMin?: string, timeMax?: string, maxResults?: number }} [range] */
   getCalendarEvents: ({ timeMin, timeMax, maxResults } = {}) => {
     const params = new URLSearchParams();
     if (timeMin) params.set("timeMin", timeMin);

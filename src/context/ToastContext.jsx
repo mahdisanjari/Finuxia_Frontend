@@ -7,7 +7,12 @@ export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
   // `action` ({ label, onClick }) adds a button to the toast, and keeps it a little longer so it can be used.
-  const addToast = useCallback((message, { action } = {}) => {
+  const addToast = useCallback(
+    /**
+     * @param {string} message
+     * @param {{ action?: { label: string, onClick: () => void } }} [options]
+     */
+    (message, { action } = {}) => {
     const id = Date.now() + Math.random();
     setToasts((prev) => [...prev, { id, message, action }]);
     setTimeout(() => {

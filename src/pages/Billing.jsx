@@ -29,8 +29,7 @@ export default function Billing() {
         setPurchasesOpen(res.purchasesOpen !== false);
       })
       .catch(() => addToast("Could not load plans"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [addToast]);
 
   const currentPlanKey = billing?.plan?.key;
   const isLegacy = currentPlanKey === "legacy";

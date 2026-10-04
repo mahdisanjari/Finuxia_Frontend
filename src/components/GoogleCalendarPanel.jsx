@@ -72,7 +72,7 @@ export default function GoogleCalendarPanel() {
   const groupKeysSignature = eventGroups.map((g) => g.key).join("|");
   useEffect(() => {
     setExpandedDates(eventGroups.length ? new Set([eventGroups[0].key]) : new Set());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-sync only when the set of dates changes (groupKeysSignature), not on every refresh of the same events
   }, [groupKeysSignature]);
 
   const toggleDate = (key) => {

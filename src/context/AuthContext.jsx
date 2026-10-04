@@ -140,6 +140,7 @@ export function AuthProvider({ children }) {
       uploadAvatar,
       removeAvatar,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the value changes with the session state, not with the identity of the action functions (recreated each render, they only call the API and setState)
     [user, initializing, billing, billingStatus]
   );
 

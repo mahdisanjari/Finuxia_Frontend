@@ -41,7 +41,7 @@ function cacheKeys(email) {
 // What the server last confirmed for a client, minus its `version` — used to
 // tell which clients actually changed locally and need a PATCH.
 function contentJson(client) {
-  const { version, ...rest } = client; // eslint-disable-line no-unused-vars
+  const { version: _version, ...rest } = client;
   return JSON.stringify(rest);
 }
 
@@ -151,7 +151,7 @@ export function ClientsProvider({ children }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when the signed-in account changes; loadFromServer reads refs and the current user's cache keys, and re-running it on every render would refetch
   }, [user?.email]);
 
   // ---- sync: clients (per-client PATCH / DELETE, optimistic concurrency) ----
@@ -193,7 +193,7 @@ export function ClientsProvider({ children }) {
       if (!entry) continue; // not confirmed by the server (e.g. the first load failed) — never PATCH blindly
       const json = contentJson(c);
       if (json === entry.json) continue;
-      const { id: _id, version: _version, ...body } = c; // eslint-disable-line no-unused-vars
+      const { id: _id, version: _version, ...body } = c;
       try {
         const saved = await api.patchClient(id, { ...body, version: entry.version });
         snap.set(id, { version: saved.version, json });
@@ -242,7 +242,7 @@ export function ClientsProvider({ children }) {
     writeCache(keys.clients, clients);
     if (clientTimer.current) clearTimeout(clientTimer.current);
     clientTimer.current = setTimeout(runSync, SYNC_DEBOUNCE_MS);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a debounced save per change of `clients`: runSync / writeCache are recreated each render and read refs, so listing them would restart the debounce on every render
   }, [clients]);
 
   // ---- debounced sync: daily tasks -----------------------------------
@@ -253,7 +253,7 @@ export function ClientsProvider({ children }) {
     stateTimer.current = setTimeout(() => {
       api.putState(doneTasks).catch((err) => setSyncError(err));
     }, SYNC_DEBOUNCE_MS);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a debounced save per change of `doneTasks` (same reasoning as the clients effect above)
   }, [doneTasks]);
 
   // ---- debounced sync: client groups ----------------------------------
@@ -270,7 +270,7 @@ export function ClientsProvider({ children }) {
           addToast(err.message || "Couldn't save group changes to the server");
         });
     }, SYNC_DEBOUNCE_MS);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a debounced save per change of `groups` (same reasoning as the clients effect above)
   }, [groups]);
 
   const nextColor = () => AV_COLORS[clients.length % AV_COLORS.length];
@@ -657,6 +657,7 @@ export function ClientsProvider({ children }) {
       toggleClientInGroup,
       getGroupsForClient,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the context value changes with the data, not with the identity of the action functions: they are recreated each render but only read refs and call setState
     [clients, doneTasks, groups, loading, syncError]
   );
 
