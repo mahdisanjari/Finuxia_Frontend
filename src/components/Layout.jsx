@@ -12,6 +12,7 @@ import AddClientModal from "./AddClientModal";
 import ReconnectModal from "./ReconnectModal";
 import ConnectNudgeModal from "./ConnectNudgeModal";
 import Footer from "./Footer";
+import RouteErrorBoundary from "./RouteErrorBoundary";
 
 // The everyday, single-click items — kept short on purpose so the bar
 // doesn't get crowded. Everything else lives in one of the dropdowns below.
@@ -129,7 +130,9 @@ export default function Layout() {
       )}
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-6 sm:px-6">
-        <Outlet />
+        <RouteErrorBoundary>
+          <Outlet />
+        </RouteErrorBoundary>
       </main>
 
       <Footer />

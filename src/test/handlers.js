@@ -27,5 +27,11 @@ export const defaultHandlers = [
   http.get(`${API}/api/billing/me`, () => HttpResponse.json(testBilling)),
   http.get(`${API}/api/clients`, () => HttpResponse.json([])),
   http.get(`${API}/api/state`, () => HttpResponse.json({ doneTasks: {}, groups: [] })),
+  // What the layout and the providers ask for on every page.
+  http.get(`${API}/api/reminders`, () => HttpResponse.json([])),
+  http.get(`${API}/api/booking/requests`, () => HttpResponse.json([])),
+  http.get(`${API}/api/calendar-connect/status`, () => HttpResponse.json({ configured: true, connected: false, status: "disconnected", googleEmail: null })),
+  http.get(`${API}/api/drive/status`, () => HttpResponse.json({ connected: false, status: "disconnected", googleEmail: null })),
+  http.get(`${API}/api/zoom-connect/status`, () => HttpResponse.json({ connected: false, status: "disconnected", googleEmail: null })),
   http.post(`${API}/api/auth/logout`, () => new HttpResponse(null, { status: 204 })),
 ];
