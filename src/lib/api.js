@@ -5,6 +5,8 @@
  * sends them with `credentials: "include"`, and state-changing requests echo the
  * readable CSRF cookie in `X-CSRF-Token`.
  */
+import { messageForStatus, parseRetryAfter } from "./apiErrors";
+
 const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:4000").replace(/\/$/, "");
 const CSRF_COOKIE = "fx_csrf";
 const LEGACY_TOKEN_KEY = "advisorpilot.token";
@@ -88,10 +90,14 @@ async function authedFetch(path, init = {}) {
 }
 
 export class ApiError extends Error {
-  constructor(message, { status, data } = {}) {
+  constructor(message, { status, data, retryAfter = null, path = "" } = {}) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    // Seconds the server asked us to wait (Retry-After on a 429), the machine-readable `code` it sent, and the request path.
+    this.retryAfter = retryAfter;
+    this.code = data?.code || "";
+    this.path = path;
     // The parsed error body — e.g. a 409 on a client edit carries `client`, the server's latest copy.
     this.data = data;
   }
@@ -122,6 +128,25 @@ function firstErrorMessage(data) {
   return null;
 }
 
+// The one place a refused response becomes an ApiError: the server's own sentence if it sent one (a sensible fallback
+// per status if not), and the Retry-After wait on a 429 (see lib/apiErrors.js).
+function apiErrorFrom(status, data, path, retryAfterHeader) {
+  const retryAfter = parseRetryAfter(retryAfterHeader);
+  const sent = data?.error || data?.detail || firstErrorMessage(data);
+  return new ApiError(messageForStatus(status, sent, { retryAfter, path }), { status, data, retryAfter, path });
+}
+
+// The same, from a fetch Response whose body is not read yet (file downloads and previews).
+async function apiErrorFromResponse(res, path) {
+  let data = null;
+  try {
+    data = JSON.parse(await res.text());
+  } catch {
+    // not JSON
+  }
+  return apiErrorFrom(res.status, data, path, res.headers.get("Retry-After"));
+}
+
 async function request(path, { method = "GET", body } = {}) {
   const headers = { "Content-Type": "application/json" };
 
@@ -148,13 +173,7 @@ async function request(path, { method = "GET", body } = {}) {
     }
   }
 
-  if (!res.ok) {
-    const message =
-      data?.error ||
-      firstErrorMessage(data) ||
-      `Request failed (${res.status})`;
-    throw new ApiError(String(message), { status: res.status, data });
-  }
+  if (!res.ok) throw apiErrorFrom(res.status, data, path, res.headers.get("Retry-After"));
 
   return data;
 }
@@ -178,13 +197,7 @@ async function requestMultipart(path, formData) {
       data = null;
     }
   }
-  if (!res.ok) {
-    const message =
-      data?.error ||
-      firstErrorMessage(data) ||
-      `Request failed (${res.status})`;
-    throw new ApiError(String(message), { status: res.status });
-  }
+  if (!res.ok) throw apiErrorFrom(res.status, data, path, res.headers.get("Retry-After"));
   return data;
 }
 
@@ -197,16 +210,7 @@ async function downloadFile(path, fallbackName) {
   } catch {
     throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
   }
-  if (!res.ok) {
-    let message = `Request failed (${res.status})`;
-    try {
-      const data = JSON.parse(await res.text());
-      message = data?.error || message;
-    } catch {
-      // ignore
-    }
-    throw new ApiError(message, { status: res.status });
-  }
+  if (!res.ok) throw await apiErrorFromResponse(res, path);
 
   const disposition = res.headers.get("Content-Disposition") || "";
   const match = disposition.match(/filename="([^"]+)"/);
@@ -232,7 +236,7 @@ async function fetchBlobUrl(path) {
   } catch {
     throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
   }
-  if (!res.ok) throw new ApiError(`Request failed (${res.status})`, { status: res.status });
+  if (!res.ok) throw await apiErrorFromResponse(res, path);
   return URL.createObjectURL(await res.blob());
 }
 
@@ -274,8 +278,7 @@ function sendMultipartXHR(path, formData, onProgress) {
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(data);
       } else {
-        const message = data?.error || firstErrorMessage(data) || `Request failed (${xhr.status})`;
-        reject(new ApiError(String(message), { status: xhr.status }));
+        reject(apiErrorFrom(xhr.status, data, path, xhr.getResponseHeader("Retry-After")));
       }
     };
     xhr.send(formData);
@@ -292,16 +295,7 @@ async function requestMultipartDownload(path, formData, fallbackName) {
   } catch {
     throw new ApiError("Can't reach the server. Is the backend running?", { status: 0 });
   }
-  if (!res.ok) {
-    let message = `Request failed (${res.status})`;
-    try {
-      const data = JSON.parse(await res.text());
-      message = data?.error || firstErrorMessage(data) || message;
-    } catch {
-      // ignore — non-JSON error body
-    }
-    throw new ApiError(message, { status: res.status });
-  }
+  if (!res.ok) throw await apiErrorFromResponse(res, path);
 
   const disposition = res.headers.get("Content-Disposition") || "";
   const match = disposition.match(/filename="([^"]+)"/);

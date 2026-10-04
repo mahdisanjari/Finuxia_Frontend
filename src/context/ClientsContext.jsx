@@ -85,6 +85,44 @@ export function ClientsProvider({ children }) {
   const keys = cacheKeys(user?.email);
   clientsRef.current = clients;
 
+  // Fetches the server's clients and state and makes them the confirmed copy (what edits are diffed against).
+  // `isCancelled` lets the login effect drop the result if the user changed while it was in flight.
+  const loadFromServer = async (isCancelled = () => false) => {
+    try {
+      const [serverClients, serverState] = await Promise.all([api.getClients(), api.getState()]);
+      if (isCancelled()) return;
+      const normalized = normalize(serverClients);
+      snapshotRef.current = new Map(
+        normalized.map((c) => [String(c.id), { version: c.version, json: contentJson(c) }])
+      );
+      setClients(normalized);
+      setDoneTasks(serverState?.doneTasks || {});
+      setGroups(serverState?.groups || []);
+      writeCache(keys.clients, normalized);
+      writeCache(keys.done, serverState?.doneTasks || {});
+      writeCache(keys.groups, serverState?.groups || []);
+      setSyncError(null);
+    } catch (err) {
+      if (!isCancelled()) setSyncError(err);
+    } finally {
+      if (!isCancelled()) {
+        setLoading(false);
+        // Flip AFTER effects from the setState above have run, so the sync
+        // effects below don't echo the just-loaded data back to the server.
+        setTimeout(() => {
+          hydratedRef.current = true;
+        }, 0);
+      }
+    }
+  };
+
+  // "Refresh" on a conflict message: drop what this tab holds and take the server's copy.
+  const refreshFromServer = () => {
+    hydratedRef.current = false;
+    setLoading(true);
+    return loadFromServer();
+  };
+
   // ---- load on login / clear on logout -------------------------------
   useEffect(() => {
     hydratedRef.current = false;
@@ -108,35 +146,7 @@ export function ClientsProvider({ children }) {
     setGroups(readCache(keys.groups, []));
     setLoading(true);
     let cancelled = false;
-
-    (async () => {
-      try {
-        const [serverClients, serverState] = await Promise.all([api.getClients(), api.getState()]);
-        if (cancelled) return;
-        const normalized = normalize(serverClients);
-        snapshotRef.current = new Map(
-          normalized.map((c) => [String(c.id), { version: c.version, json: contentJson(c) }])
-        );
-        setClients(normalized);
-        setDoneTasks(serverState?.doneTasks || {});
-        setGroups(serverState?.groups || []);
-        writeCache(keys.clients, normalized);
-        writeCache(keys.done, serverState?.doneTasks || {});
-        writeCache(keys.groups, serverState?.groups || []);
-        setSyncError(null);
-      } catch (err) {
-        if (!cancelled) setSyncError(err);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-          // Flip AFTER effects from the setState above have run, so the sync
-          // effects below don't echo the just-loaded data back to the server.
-          setTimeout(() => {
-            hydratedRef.current = true;
-          }, 0);
-        }
-      }
-    })();
+    loadFromServer(() => cancelled);
 
     return () => {
       cancelled = true;
@@ -152,7 +162,9 @@ export function ClientsProvider({ children }) {
     const [fresh] = normalize([serverClient]);
     snapshotRef.current.set(id, { version: fresh.version, json: contentJson(fresh) });
     setClients((prev) => prev.map((c) => (String(c.id) === id ? fresh : c)));
-    addToast(`${fresh.first} ${fresh.last}`.trim() + " was changed elsewhere — showing the latest version");
+    addToast(`${fresh.first} ${fresh.last}`.trim() + " was changed elsewhere — showing the latest version", {
+      action: { label: "Refresh", onClick: refreshFromServer },
+    });
   };
 
   const syncOnce = async () => {
@@ -618,6 +630,7 @@ export function ClientsProvider({ children }) {
       clients,
       loading,
       syncError,
+      refreshFromServer,
       addClient,
       updateClient,
       editClient,
