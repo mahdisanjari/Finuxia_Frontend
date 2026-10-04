@@ -1,3 +1,7 @@
+import useAiUsage from "../hooks/useAiUsage";
+import AiUsageInline from "../components/AiUsageInline";
+import AiBlockedNotice from "../components/AiBlockedNotice";
+import { isAiBlocked } from "../lib/aiUsage";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -178,6 +182,9 @@ export default function SalesPackagePrep() {
 
   const [uploadProgress, setUploadProgress] = useState({});
   const [letterDrafting, setLetterDrafting] = useState(false);
+  // The advisor's AI allowance (for the 80% / 95% warnings) and, if a draft was blocked, why.
+  const { usage: aiUsage, refresh: refreshAiUsage } = useAiUsage();
+  const [letterBlocked, setLetterBlocked] = useState(null);
   const [disclosureGenerating, setDisclosureGenerating] = useState(false);
   const [supervisionGenerating, setSupervisionGenerating] = useState(false);
 
@@ -434,13 +441,17 @@ export default function SalesPackagePrep() {
   // ---- Letter + Agent Disclosure ----
   const handleDraftLetter = async () => {
     setLetterDrafting(true);
+    setLetterBlocked(null);
     try {
       const { text } = await api.draftReasonWhyLetter(packageId);
       patch({ reasonWhyLetterText: text });
     } catch (err) {
-      addToast(err.message || "Could not draft the Reason Why Letter");
+      // An out-of-credit / not-in-plan answer is explained on the page with a way out, not flashed as a toast.
+      if (isAiBlocked(err)) setLetterBlocked(err);
+      else addToast(err.message || "Could not draft the Reason Why Letter");
     } finally {
       setLetterDrafting(false);
+      refreshAiUsage();
     }
   };
   const handleSaveLetter = async () => {
@@ -635,6 +646,9 @@ export default function SalesPackagePrep() {
           onDownloadLetterPdf={handleDownloadLetterPdf}
           onDraftLetter={handleDraftLetter}
           letterDrafting={letterDrafting}
+          aiUsage={aiUsage}
+          letterBlocked={letterBlocked}
+          onDismissBlocked={() => setLetterBlocked(null)}
           onSaveLetter={handleSaveLetter}
         />
       )}
@@ -1301,11 +1315,13 @@ function LetterPreview({ text }) {
   );
 }
 
-function LetterStep({ data, patch, letterDoc, onDownload, onDownloadLetterPdf, onDraftLetter, letterDrafting, onSaveLetter }) {
+function LetterStep({ data, patch, letterDoc, onDownload, onDownloadLetterPdf, onDraftLetter, letterDrafting, aiUsage, letterBlocked, onDismissBlocked, onSaveLetter }) {
   const [editing, setEditing] = useState(false);
   return (
     <>
       <Card title="Reason Why Letter" subtitle="Must be generated and reviewed before moving on. The Agent Disclosure and Supervision forms are handled later, on the Documents step.">
+        <AiUsageInline usage={aiUsage} className="mb-3" />
+        {letterBlocked && <AiBlockedNotice error={letterBlocked} onDismiss={onDismissBlocked} className="mb-3" />}
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <button
             type="button"

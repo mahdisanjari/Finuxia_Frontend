@@ -464,6 +464,10 @@ export const api = {
   // Checkout once configured, an instant "mock" purchase until then).
   getBillingPlans: () => request("/api/billing/plans"),
   getMyBillingStatus: () => request("/api/billing/me"),
+  // The advisor's AI usage this billing period, in credits: used / remaining, reset date, per-feature
+  // breakdown, wallet balance and the recent calls.
+  getAiUsage: () => request("/api/billing/ai-usage"),
+  topUpWallet: (amountCents) => request("/api/billing/wallet/topup", { method: "POST", body: { amountCents } }),
   // The provider sends the customer back to these pages, which confirm the payment with the server (see PaymentReturn).
   purchasePlan: (planId) =>
     request("/api/billing/purchase", {
