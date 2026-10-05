@@ -7,6 +7,9 @@ export function inputClass(error) {
   }`;
 }
 
+/** `inputClass()` as a constant, for the many fields that never show an error state. */
+export const inputBaseClass = inputClass();
+
 /** A text input. `error` (a message or true) turns the border red and sets aria-invalid; pass it through <Field> for the message. */
 const Input = forwardRef(function Input({ error, className = "", ...props }, ref) {
   return <input ref={ref} aria-invalid={error ? true : undefined} className={`${inputClass(error)} ${className}`} {...props} />;

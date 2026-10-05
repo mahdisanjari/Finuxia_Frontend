@@ -2,7 +2,7 @@ import { Clock } from "lucide-react";
 import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, userEvent } from "../../test/utils";
-import { Badge, Button, Card, Field, Input, Select, Table, TBody, Td, Th, THead, Tr, inputClass } from "./index";
+import { Badge, Button, Card, Field, Input, Select, Table, TBody, Td, Th, THead, Tr, inputBaseClass, inputClass } from "./index";
 
 describe("Button", () => {
   it("is type=button by default, so it never submits a form by accident", () => {
@@ -59,6 +59,11 @@ describe("Input, Select and Field", () => {
     rerender(<Input aria-label="Name" error="Required" />);
     expect(screen.getByLabelText("Name")).toHaveClass("border-av-red");
     expect(screen.getByLabelText("Name")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("inputBaseClass is a STRING (the constant for fields with no error state): passing the function by mistake would drop the styling", () => {
+    expect(typeof inputBaseClass).toBe("string");
+    expect(inputBaseClass).toBe(inputClass());
   });
 
   it("inputClass is the one class string the text fields share", () => {

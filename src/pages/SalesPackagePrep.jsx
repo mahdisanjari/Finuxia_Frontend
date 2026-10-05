@@ -1,4 +1,4 @@
-import { inputClass } from "../components/ui";
+import { inputBaseClass } from "../components/ui";
 import Switch from "../components/ui/Switch";
 import useAiUsage from "../hooks/useAiUsage";
 import AiUsageInline from "../components/billing/AiUsageInline";
@@ -863,7 +863,7 @@ function CurrencyInput({ value, onChange, className, placeholder, disabled, titl
 function CurrencyField({ label, value, onChange, placeholder }) {
   return (
     <Field label={label}>
-      <CurrencyInput value={value} onChange={onChange} placeholder={placeholder} className={inputClass} />
+      <CurrencyInput value={value} onChange={onChange} placeholder={placeholder} className={inputBaseClass} />
     </Field>
   );
 }
@@ -907,10 +907,10 @@ function ClientStep({ data, patch }) {
             />
           </Field>
           <Field label="Insured Person" required>
-            <input className={inputClass} value={data.insuredPerson} onChange={(e) => patch({ insuredPerson: e.target.value })} />
+            <input className={inputBaseClass} value={data.insuredPerson} onChange={(e) => patch({ insuredPerson: e.target.value })} />
           </Field>
           <Field label="Canadian Status" required>
-            <select className={inputClass} value={data.canadianStatus} onChange={(e) => patch({ canadianStatus: e.target.value })}>
+            <select className={inputBaseClass} value={data.canadianStatus} onChange={(e) => patch({ canadianStatus: e.target.value })}>
               <option value="">Select...</option>
               {CANADIAN_STATUSES.map((s) => (
                 <option key={s} value={s}>
@@ -920,7 +920,7 @@ function ClientStep({ data, patch }) {
             </select>
           </Field>
           <Field label="Province" required>
-            <select className={inputClass} value={data.province} onChange={(e) => patch({ province: e.target.value })}>
+            <select className={inputBaseClass} value={data.province} onChange={(e) => patch({ province: e.target.value })}>
               <option value="">Select...</option>
               {PROVINCES.map((p) => (
                 <option key={p} value={p}>
@@ -934,14 +934,14 @@ function ClientStep({ data, patch }) {
               type="date"
               min={MIN_BIRTH_DATE}
               max={todayISO()}
-              className={`${inputClass} ${birthDateError(data.dateOfBirth) ? "border-av-red focus:border-av-red focus:ring-av-red/20" : ""}`}
+              className={`${inputBaseClass} ${birthDateError(data.dateOfBirth) ? "border-av-red focus:border-av-red focus:ring-av-red/20" : ""}`}
               value={data.dateOfBirth}
               onChange={(e) => patch({ dateOfBirth: e.target.value })}
             />
             {birthDateError(data.dateOfBirth) && <span className="text-xs text-av-red">{birthDateError(data.dateOfBirth)}</span>}
           </Field>
           <Field label="Marital Status">
-            <select className={inputClass} value={data.maritalStatus} onChange={(e) => patch({ maritalStatus: e.target.value })}>
+            <select className={inputBaseClass} value={data.maritalStatus} onChange={(e) => patch({ maritalStatus: e.target.value })}>
               <option value="">Select...</option>
               {MARITAL_STATUSES.map((s) => (
                 <option key={s} value={s}>
@@ -951,7 +951,7 @@ function ClientStep({ data, patch }) {
             </select>
           </Field>
           <Field label="Occupation">
-            <input className={inputClass} value={data.occupation} onChange={(e) => patch({ occupation: e.target.value })} />
+            <input className={inputBaseClass} value={data.occupation} onChange={(e) => patch({ occupation: e.target.value })} />
           </Field>
           <CurrencyField
             label="Annual Income"
@@ -1079,7 +1079,7 @@ function NeedsStep({ data, patch }) {
       </div>
       <label className="mt-4 flex flex-col gap-1.5">
         <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Other (optional)</span>
-        <input className={inputClass} value={data.otherNeed} onChange={(e) => patch({ otherNeed: e.target.value })} />
+        <input className={inputBaseClass} value={data.otherNeed} onChange={(e) => patch({ otherNeed: e.target.value })} />
       </label>
     </Card>
   );
@@ -1283,7 +1283,7 @@ function DetailsStep({ data, patch, hasInvestmentProduct }) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <Field label="Risk Tolerance">
               <select
-                className={inputClass}
+                className={inputBaseClass}
                 value={data.investmentProfile.riskTolerance}
                 onChange={(e) => patchInvestmentProfile({ riskTolerance: e.target.value })}
               >
@@ -1297,7 +1297,7 @@ function DetailsStep({ data, patch, hasInvestmentProduct }) {
             </Field>
             <Field label="Investment Horizon">
               <select
-                className={inputClass}
+                className={inputBaseClass}
                 value={data.investmentProfile.investmentHorizon}
                 onChange={(e) => patchInvestmentProfile({ investmentHorizon: e.target.value })}
               >
@@ -1311,7 +1311,7 @@ function DetailsStep({ data, patch, hasInvestmentProduct }) {
             </Field>
             <Field label="Investment Objective">
               <select
-                className={inputClass}
+                className={inputBaseClass}
                 value={data.investmentProfile.investmentObjective}
                 onChange={(e) => patchInvestmentProfile({ investmentObjective: e.target.value })}
               >
@@ -1325,7 +1325,7 @@ function DetailsStep({ data, patch, hasInvestmentProduct }) {
             </Field>
             <Field label="Source of Funds">
               <select
-                className={inputClass}
+                className={inputBaseClass}
                 value={data.investmentProfile.sourceOfFunds}
                 onChange={(e) => patchInvestmentProfile({ sourceOfFunds: e.target.value })}
               >

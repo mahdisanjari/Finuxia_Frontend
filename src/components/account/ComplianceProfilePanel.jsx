@@ -1,4 +1,4 @@
-import { inputClass } from "../ui";
+import { inputBaseClass } from "../ui";
 import Switch from "../ui/Switch";
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
@@ -101,7 +101,7 @@ export default function ComplianceProfilePanel() {
               value={professionalTitle}
               onChange={(e) => setProfessionalTitle(e.target.value)}
               placeholder="Financial Advisor"
-              className={inputClass}
+              className={inputBaseClass}
             />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -111,7 +111,7 @@ export default function ComplianceProfilePanel() {
               value={businessEmail}
               onChange={(e) => setBusinessEmail(e.target.value)}
               placeholder="advisor@domain.ca"
-              className={inputClass}
+              className={inputBaseClass}
             />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -120,7 +120,7 @@ export default function ComplianceProfilePanel() {
               value={businessPhone}
               onChange={(e) => setBusinessPhone(e.target.value)}
               placeholder="(403) 555-0000"
-              className={inputClass}
+              className={inputBaseClass}
             />
           </label>
         </div>
@@ -131,7 +131,7 @@ export default function ComplianceProfilePanel() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Agency / Dealer</span>
-            <select value={agencyName} onChange={(e) => setAgencyName(e.target.value)} className={inputClass}>
+            <select value={agencyName} onChange={(e) => setAgencyName(e.target.value)} className={inputBaseClass}>
               <option value="">Select...</option>
               {AGENCY_OPTIONS.map((o) => (
                 <option key={o} value={o}>
@@ -142,11 +142,11 @@ export default function ComplianceProfilePanel() {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Advisor / Agent Code</span>
-            <input value={agentCode} onChange={(e) => setAgentCode(e.target.value)} placeholder="WFG123456" className={inputClass} />
+            <input value={agentCode} onChange={(e) => setAgentCode(e.target.value)} placeholder="WFG123456" className={inputBaseClass} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Branch</span>
-            <select value={businessBranchName} onChange={(e) => setBusinessBranchName(e.target.value)} className={inputClass}>
+            <select value={businessBranchName} onChange={(e) => setBusinessBranchName(e.target.value)} className={inputBaseClass}>
               <option value="">Select...</option>
               {[...BRANCH_OPTIONS, ...(businessBranchName && !BRANCH_OPTIONS.includes(businessBranchName) ? [businessBranchName] : [])].map(
                 (o) => (
@@ -270,19 +270,19 @@ export default function ComplianceProfilePanel() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Supervisor Name</span>
-              <input value={supervisorName} onChange={(e) => setSupervisorName(e.target.value)} className={inputClass} />
+              <input value={supervisorName} onChange={(e) => setSupervisorName(e.target.value)} className={inputBaseClass} />
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Supervisor Title</span>
-              <input value={supervisorTitle} onChange={(e) => setSupervisorTitle(e.target.value)} className={inputClass} />
+              <input value={supervisorTitle} onChange={(e) => setSupervisorTitle(e.target.value)} className={inputBaseClass} />
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Supervisor Email</span>
-              <input type="email" value={supervisorEmail} onChange={(e) => setSupervisorEmail(e.target.value)} className={inputClass} />
+              <input type="email" value={supervisorEmail} onChange={(e) => setSupervisorEmail(e.target.value)} className={inputBaseClass} />
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Supervisor Phone</span>
-              <input value={supervisorPhone} onChange={(e) => setSupervisorPhone(e.target.value)} className={inputClass} />
+              <input value={supervisorPhone} onChange={(e) => setSupervisorPhone(e.target.value)} className={inputBaseClass} />
             </label>
           </div>
         )}
@@ -293,7 +293,7 @@ export default function ComplianceProfilePanel() {
         <div className="flex flex-col gap-4">
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Ownership Relationship</span>
-            <select value={ownershipRelationship} onChange={(e) => setOwnershipRelationship(e.target.value)} className={inputClass}>
+            <select value={ownershipRelationship} onChange={(e) => setOwnershipRelationship(e.target.value)} className={inputBaseClass}>
               <option value="">Select...</option>
               {OWNERSHIP_OPTIONS.map((o) => (
                 <option key={o} value={o}>
@@ -304,7 +304,7 @@ export default function ComplianceProfilePanel() {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Compensation Model</span>
-            <select value={compensationModel} onChange={(e) => setCompensationModel(e.target.value)} className={inputClass}>
+            <select value={compensationModel} onChange={(e) => setCompensationModel(e.target.value)} className={inputBaseClass}>
               <option value="">Select...</option>
               {COMPENSATION_OPTIONS.map((o) => (
                 <option key={o} value={o}>
