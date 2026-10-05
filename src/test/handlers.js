@@ -42,6 +42,7 @@ export const defaultHandlers = [
       recentUsage: [],
     })
   ),
+  http.get(`${API}/api/billing/invoices`, () => HttpResponse.json({ available: false, invoices: [] })),
   http.get(`${API}/api/followups/rules/:ref`, ({ params }) =>
     HttpResponse.json({ clientRef: params.ref, enabled: false, frequency: "monthly", tone: "friendly" })
   ),

@@ -4,6 +4,8 @@ import {
   BOOKING_STATUS,
   DOCUMENT_STATUS,
   DOTS,
+  INVOICE_STATUS,
+  invoiceStatusMeta,
   TICKET_STATUS,
   TICKET_TYPE,
   TONES,
@@ -56,5 +58,20 @@ describe("status styling lives in one module", () => {
       expect(code, file).not.toMatch(/const STATUS_META\s*=/);
       expect(code, file).not.toMatch(/bg-av-\w+\/10 text-av-\w+.*Pending/);
     }
+  });
+});
+
+describe("invoice statuses", () => {
+  it("each known status has a label and a tone", () => {
+    expect(Object.keys(INVOICE_STATUS).sort()).toEqual(["draft", "open", "paid", "uncollectible", "void"]);
+    expect(invoiceStatusMeta("paid")).toMatchObject({ label: "Paid", tone: "green" });
+    expect(invoiceStatusMeta("open")).toMatchObject({ label: "Payment due", tone: "amber" });
+    expect(invoiceStatusMeta("uncollectible")).toMatchObject({ label: "Uncollectible", tone: "red" });
+  });
+
+  it("a status added later shows its own word, neutral", () => {
+    expect(invoiceStatusMeta("scheduled")).toMatchObject({ label: "Scheduled", tone: "slate" });
+    expect(invoiceStatusMeta("")).toMatchObject({ label: "Unknown", tone: "slate" });
+    expect(invoiceStatusMeta(undefined)).toMatchObject({ label: "Unknown", tone: "slate" });
   });
 });

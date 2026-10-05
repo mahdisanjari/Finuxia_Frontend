@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { API, testBilling } from "../../test/handlers";
 import { server } from "../../test/server";
 import { fireEvent, renderWithProviders, screen, userEvent, waitFor, within } from "../../test/utils";
@@ -21,8 +21,12 @@ const pending = () => ({ ...active(), cancelAtPeriodEnd: true, endsAt: at(2026, 
 
 let state; // the subscription "on the server"
 let posts;
+const realLocation = window.location;
+
+afterEach(() => Object.defineProperty(window, "location", { configurable: true, value: realLocation }));
 
 beforeEach(() => {
+  Object.defineProperty(window, "location", { configurable: true, value: { ...realLocation, href: "http://localhost/billing" } });
   state = active();
   posts = [];
   server.use(
@@ -32,6 +36,10 @@ beforeEach(() => {
       posts.push({ path: "cancel", body });
       state = body.immediately ? { ...active(), status: "canceled", canceledAt: at(2026, 1, 10) } : pending();
       return HttpResponse.json(state);
+    }),
+    http.post(`${API}/api/billing/portal`, async ({ request }) => {
+      posts.push({ path: "portal", body: await request.json() });
+      return HttpResponse.json({ url: "https://billing.stripe.com/p/session/abc" });
     }),
     http.post(`${API}/api/billing/reactivate`, () => {
       posts.push({ path: "reactivate" });
@@ -247,5 +255,63 @@ describe("taking a cancellation back", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Keep my subscription" }));
     expect(await screen.findByText(/Your subscription has ended\. Choose a plan below/)).toBeInTheDocument();
     expect(toast()).toMatch(/Choose a plan to subscribe again/);
+  });
+});
+
+describe("the card and the invoices live at Stripe", () => {
+  it("'Manage payment method & invoices' sends the customer to Stripe's page", async () => {
+    show();
+    await userEvent.click(await screen.findByRole("button", { name: "Manage payment method & invoices" }));
+    await waitFor(() => expect(window.location.href).toBe("https://billing.stripe.com/p/session/abc"));
+    expect(posts).toEqual([{ path: "portal", body: {} }]); // no flow, and no return address: the server decides that
+  });
+
+  it("the customer cannot click twice while the browser is leaving", async () => {
+    show();
+    const button = await screen.findByRole("button", { name: "Manage payment method & invoices" });
+    await userEvent.click(button);
+    await waitFor(() => expect(window.location.href).toBe("https://billing.stripe.com/p/session/abc"));
+    expect(button).toBeDisabled();
+  });
+
+  it("when a payment failed, 'Update card' goes straight to the card form", async () => {
+    state = { ...active(), status: "past_due" };
+    show();
+    await userEvent.click(await screen.findByRole("button", { name: "Update card" }));
+    await waitFor(() => expect(posts).toEqual([{ path: "portal", body: { flow: "payment_method_update" } }]));
+    expect(window.location.href).toBe("https://billing.stripe.com/p/session/abc");
+  });
+
+  it("there is no 'Update card' while payments are fine", async () => {
+    show();
+    await screen.findByText("Elite");
+    expect(screen.queryByRole("button", { name: "Update card" })).not.toBeInTheDocument();
+  });
+
+  it("a failure is a message and the page stays where it is", async () => {
+    server.use(
+      http.post(`${API}/api/billing/portal`, () => HttpResponse.json({ error: "Could not open billing management." }, { status: 502 }))
+    );
+    show();
+    const button = await screen.findByRole("button", { name: "Manage payment method & invoices" });
+    await userEvent.click(button);
+    await waitFor(() => expect(toast()).toMatch(/Could not open billing management/));
+    expect(window.location.href).toBe("http://localhost/billing");
+    expect(button).toBeEnabled();
+  });
+
+  it("a customer who has never paid is told there is nothing to manage", async () => {
+    server.use(
+      http.post(`${API}/api/billing/portal`, () =>
+        HttpResponse.json(
+          { error: "You haven't paid for a plan yet, so there is no billing account to manage.", code: "no_billing_account" },
+          { status: 409 }
+        )
+      )
+    );
+    show();
+    await userEvent.click(await screen.findByRole("button", { name: "Manage payment method & invoices" }));
+    await waitFor(() => expect(toast()).toMatch(/no billing account to manage/));
+    expect(window.location.href).toBe("http://localhost/billing");
   });
 });

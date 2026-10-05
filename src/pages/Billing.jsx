@@ -4,6 +4,7 @@ import { rememberPlanBeforeCheckout } from "../lib/checkout";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { api } from "../lib/api";
+import InvoiceHistory from "../components/billing/InvoiceHistory";
 import SubscriptionCard from "../components/billing/SubscriptionCard";
 
 function formatPrice(cents, currency, interval) {
@@ -63,6 +64,7 @@ export default function Billing() {
       </div>
 
       <SubscriptionCard />
+      {billing?.plan?.priceCents > 0 && !isLegacy && <InvoiceHistory />}
 
       {isLegacy && (
         <div className="flex items-center gap-2 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-gold-dark">

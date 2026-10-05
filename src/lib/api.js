@@ -505,6 +505,13 @@ export const api = {
       method: "POST",
       body: { planId, successUrl: `${window.location.origin}/billing/success`, cancelUrl: `${window.location.origin}/billing/cancel` },
     }),
+  // Stripe hosts the card form and the invoice pages (it, not us, holds payment details). The server decides where the portal returns
+  // to; `flow: "payment_method_update"` opens it on the card form. 409 (code no_billing_account): this customer has never paid.
+  /** @param {"payment_method_update"} [flow] @returns {Promise<{ url: string }>} */
+  openBillingPortal: (flow) => request("/api/billing/portal", { method: "POST", body: flow ? { flow } : {} }),
+  /** The customer's invoices as Stripe reports them. `available: false` means payments are not connected yet. @returns {Promise<import("./types").InvoiceList>} */
+  getInvoices: () => request("/api/billing/invoices"),
+
   // Ending a subscription: by default access continues to the end of the paid period. Ending it right now forfeits the rest of
   // the period, so the server wants `confirmImmediate` as well. Nothing is ever refunded by either call.
   /** @param {{ reason?: string, immediately?: boolean, confirmImmediate?: boolean }} [options] @returns {Promise<import("./types").BillingStatus>} */

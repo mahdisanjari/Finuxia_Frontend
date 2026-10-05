@@ -16,3 +16,18 @@ export function formatCurrencyInput(value) {
   if (decPart !== undefined) result += `.${decPart.slice(0, 2)}`;
   return result;
 }
+
+/**
+ * An amount in minor units (cents) as money for a person to read: 9900, "usd" -> "$99.00". A currency the browser does not know is
+ * shown as its code after the number rather than failing.
+ * @param {number | null | undefined} cents
+ * @param {string} [currency]
+ */
+export function formatCents(cents, currency = "usd") {
+  const amount = (Number(cents) || 0) / 100;
+  try {
+    return amount.toLocaleString("en-US", { style: "currency", currency: currency.toUpperCase() });
+  } catch {
+    return `${amount.toFixed(2)} ${String(currency).toUpperCase()}`;
+  }
+}

@@ -158,6 +158,24 @@ export interface BillingStatus {
   canReactivate?: boolean;
 }
 
+export interface Invoice {
+  id: string;
+  number: string;
+  date: ISODateTime | null;
+  amountCents: number;
+  currency: string;
+  status: "paid" | "open" | "draft" | "uncollectible" | "void" | string;
+  description: string;
+  /** Stripe's page for the invoice, and its PDF; empty when it sent none. */
+  hostedUrl: string;
+  pdfUrl: string;
+}
+
+export interface InvoiceList {
+  available: boolean;
+  invoices: Invoice[];
+}
+
 export interface PurchaseResponse {
   mock?: boolean;
   checkoutUrl?: string;

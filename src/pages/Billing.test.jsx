@@ -68,3 +68,47 @@ describe("the subscription card on the page", () => {
     expect(screen.queryByRole("region", { name: "Your subscription" })).not.toBeInTheDocument();
   });
 });
+
+describe("the invoices on the page", () => {
+  const paidMe = () => http.get(`${API}/api/billing/me`, () => HttpResponse.json({ ...testBilling, plan: { ...plans[1] } }));
+  const invoice = {
+    id: "in_1",
+    number: "INV-0001",
+    date: new Date(2026, 0, 5, 12).toISOString(),
+    amountCents: 9900,
+    currency: "usd",
+    status: "paid",
+    description: "",
+    hostedUrl: "",
+    pdfUrl: "",
+  };
+
+  it("a paid plan shows its invoices", async () => {
+    server.use(
+      http.get(`${API}/api/billing/plans`, () => HttpResponse.json({ plans, stripeConfigured: true, purchasesOpen: true })),
+      paidMe(),
+      http.get(`${API}/api/billing/invoices`, () => HttpResponse.json({ available: true, invoices: [invoice] }))
+    );
+    renderWithProviders(<Billing />, { providers: ["router", "toast", "auth"] });
+    expect(await screen.findByRole("region", { name: "Invoices" })).toBeInTheDocument();
+    expect(screen.getByText("INV-0001")).toBeInTheDocument();
+  });
+
+  it("a free plan asks for no invoices", async () => {
+    let asked = 0;
+    server.use(
+      http.get(`${API}/api/billing/plans`, () => HttpResponse.json({ plans, stripeConfigured: true, purchasesOpen: true })),
+      http.get(`${API}/api/billing/me`, () =>
+        HttpResponse.json({ ...testBilling, plan: { key: "starter", name: "Starter", priceCents: 0 } })
+      ),
+      http.get(`${API}/api/billing/invoices`, () => {
+        asked += 1;
+        return HttpResponse.json({ available: true, invoices: [invoice] });
+      })
+    );
+    renderWithProviders(<Billing />, { providers: ["router", "toast", "auth"] });
+    await screen.findAllByRole("button", { name: /Subscribe/ });
+    expect(screen.queryByRole("region", { name: "Invoices" })).not.toBeInTheDocument();
+    expect(asked).toBe(0);
+  });
+});

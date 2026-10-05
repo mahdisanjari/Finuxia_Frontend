@@ -57,3 +57,14 @@ export const TICKET_TYPE = {
   feature: meta("Feature", "purple"),
 };
 export const ticketTypeMeta = (type) => TICKET_TYPE[type] ?? TICKET_TYPE.bug;
+
+/** An invoice (as the payment provider reports it). Anything it adds later shows its own word, in a neutral colour. */
+export const INVOICE_STATUS = {
+  paid: meta("Paid", "green"),
+  open: meta("Payment due", "amber"),
+  draft: meta("Draft", "slate"),
+  uncollectible: meta("Uncollectible", "red"),
+  void: meta("Void", "slate"),
+};
+export const invoiceStatusMeta = (status) =>
+  INVOICE_STATUS[status] ?? meta(status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown", "slate");

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, CalendarClock } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
+import useBillingPortal from "../../hooks/useBillingPortal";
 import { api } from "../../lib/api";
 import { formatLongDate } from "../../lib/dates";
 import { Button } from "../ui";
@@ -17,6 +18,7 @@ export default function SubscriptionCard() {
   const { addToast } = useToast();
   const [cancelling, setCancelling] = useState(false);
   const [reactivating, setReactivating] = useState(false);
+  const { opening, openPortal } = useBillingPortal();
 
   const plan = billing?.plan;
   if (!plan || !(plan.priceCents > 0) || plan.key === "legacy" || !billing.status) return null;
@@ -53,11 +55,16 @@ export default function SubscriptionCard() {
           <p className="text-lg font-bold text-navy">{plan.name}</p>
           {!ended && !pending && renewsOn && <p className="text-sm text-slate-500">Renews on {renewsOn}</p>}
         </div>
-        {!ended && !pending && (
-          <Button variant="secondary" onClick={() => setCancelling(true)}>
-            Cancel subscription
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" loading={opening} onClick={() => openPortal()}>
+            Manage payment method &amp; invoices
           </Button>
-        )}
+          {!ended && !pending && (
+            <Button variant="secondary" onClick={() => setCancelling(true)}>
+              Cancel subscription
+            </Button>
+          )}
+        </div>
       </div>
 
       {pending && !ended && (
@@ -96,10 +103,15 @@ export default function SubscriptionCard() {
       {billing.status === "past_due" && !ended && (
         <div
           role="status"
-          className="mt-4 flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"
         >
-          <AlertTriangle size={16} className="shrink-0" />
-          We couldn't take your last payment. We'll keep trying; your plan's features are paused until it goes through.
+          <span className="flex items-center gap-2">
+            <AlertTriangle size={16} className="shrink-0" />
+            We couldn't take your last payment. We'll keep trying; your plan's features are paused until it goes through.
+          </span>
+          <Button variant="primary" size="sm" loading={opening} onClick={() => openPortal("payment_method_update")}>
+            Update card
+          </Button>
         </div>
       )}
 
