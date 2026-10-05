@@ -4,6 +4,7 @@ import { rememberPlanBeforeCheckout } from "../lib/checkout";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { api } from "../lib/api";
+import SubscriptionCard from "../components/billing/SubscriptionCard";
 
 function formatPrice(cents, currency, interval) {
   if (cents === 0) return "Free";
@@ -60,6 +61,8 @@ export default function Billing() {
           Pick a plan to unlock its modules. Each plan below only affects what your own account can use.
         </p>
       </div>
+
+      <SubscriptionCard />
 
       {isLegacy && (
         <div className="flex items-center gap-2 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-gold-dark">

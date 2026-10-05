@@ -37,3 +37,34 @@ describe("starting a purchase", () => {
     expect(planBeforeCheckout()).toBe("professional");
   });
 });
+
+describe("the subscription card on the page", () => {
+  it("sits above the plans for a paid plan, so a customer can cancel from Plans & Billing", async () => {
+    server.use(
+      http.get(`${API}/api/billing/plans`, () => HttpResponse.json({ plans, stripeConfigured: true, purchasesOpen: true })),
+      http.get(`${API}/api/billing/me`, () =>
+        HttpResponse.json({
+          ...testBilling,
+          plan: { ...plans[1] },
+          currentPeriodEnd: new Date(2026, 1, 1, 12).toISOString(),
+          cancelAtPeriodEnd: false,
+        })
+      )
+    );
+    renderWithProviders(<Billing />, { providers: ["router", "toast", "auth"] });
+    expect(await screen.findByRole("button", { name: "Cancel subscription" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Your subscription" })).toBeInTheDocument();
+  });
+
+  it("is not there for a free plan", async () => {
+    server.use(
+      http.get(`${API}/api/billing/plans`, () => HttpResponse.json({ plans, stripeConfigured: true, purchasesOpen: true })),
+      http.get(`${API}/api/billing/me`, () =>
+        HttpResponse.json({ ...testBilling, plan: { key: "starter", name: "Starter", priceCents: 0 } })
+      )
+    );
+    renderWithProviders(<Billing />, { providers: ["router", "toast", "auth"] });
+    await screen.findAllByRole("button", { name: /Subscribe/ });
+    expect(screen.queryByRole("region", { name: "Your subscription" })).not.toBeInTheDocument();
+  });
+});

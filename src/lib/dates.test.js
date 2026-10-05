@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { birthDateError, todayISO } from "./dates";
+import { birthDateError, todayISO, formatLongDate } from "./dates";
 
 const originalTZ = process.env.TZ;
 afterEach(() => {
@@ -44,5 +44,18 @@ describe("birthDateError", () => {
 
   it("today is not in the future, tomorrow is", () => {
     expect(birthDateError(todayISO())).toBe("");
+  });
+});
+
+describe("formatLongDate", () => {
+  const local = (y, m, d, h = 12) => new Date(y, m - 1, d, h).toISOString();
+
+  it("reads as a date a person would write, in their own time zone", () => {
+    expect(formatLongDate(local(2026, 2, 1))).toBe("February 1, 2026");
+    expect(formatLongDate(local(2026, 12, 31, 23))).toBe("December 31, 2026");
+  });
+
+  it("is empty, not 'Invalid Date', for anything that is not a date", () => {
+    for (const junk of [null, undefined, "", "not a date", "2026-13-45"]) expect(formatLongDate(junk), String(junk)).toBe("");
   });
 });

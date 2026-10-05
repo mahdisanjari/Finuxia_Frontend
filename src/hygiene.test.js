@@ -33,7 +33,19 @@ describe("removed dead code stays removed", () => {
     expect(read("src/components/layout/Layout.jsx")).not.toContain("scrollbar-none");
   });
 
-  it("the cancel-subscription API helper with no caller is gone", () => {
-    expect(read("src/lib/api.js")).not.toContain("cancelSubscription");
+  it("the cancel and reactivate API helpers have a caller (BIL-12 built the flow they were waiting for)", () => {
+    for (const helper of ["api.cancelSubscription", "api.reactivateSubscription"]) {
+      const callers = [];
+      const walk = (dir) => {
+        for (const name of readdirSync(dir)) {
+          const path = `${dir}/${name}`;
+          if (statSync(path).isDirectory()) walk(path);
+          else if (/\.jsx?$/.test(name) && !/\.test\./.test(name) && read(path).includes(helper)) callers.push(path);
+        }
+      };
+      walk("src/components");
+      walk("src/pages");
+      expect(callers, helper).not.toEqual([]);
+    }
   });
 });

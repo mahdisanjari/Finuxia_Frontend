@@ -150,6 +150,12 @@ export interface BillingStatus {
   status: "active" | "trialing" | "past_due" | "canceled" | string;
   moduleKeys: string[];
   currentPeriodEnd: ISODateTime | null;
+  /** A cancellation is pending: access continues until `endsAt`. */
+  cancelAtPeriodEnd?: boolean;
+  endsAt?: ISODateTime | null;
+  canceledAt?: ISODateTime | null;
+  /** The cancellation can still be taken back (the paid period has not ended). */
+  canReactivate?: boolean;
 }
 
 export interface PurchaseResponse {

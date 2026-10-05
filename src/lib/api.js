@@ -505,6 +505,15 @@ export const api = {
       method: "POST",
       body: { planId, successUrl: `${window.location.origin}/billing/success`, cancelUrl: `${window.location.origin}/billing/cancel` },
     }),
+  // Ending a subscription: by default access continues to the end of the paid period. Ending it right now forfeits the rest of
+  // the period, so the server wants `confirmImmediate` as well. Nothing is ever refunded by either call.
+  /** @param {{ reason?: string, immediately?: boolean, confirmImmediate?: boolean }} [options] @returns {Promise<import("./types").BillingStatus>} */
+  cancelSubscription: ({ reason = "", immediately = false, confirmImmediate = false } = {}) =>
+    request("/api/billing/cancel", { method: "POST", body: { reason, immediately, confirmImmediate } }),
+  // Takes back a cancellation inside the paid period: same price, same billing date, nothing to pay. After the period the server
+  // answers 409 (code purchase_required): coming back is a new purchase.
+  /** @returns {Promise<import("./types").BillingStatus>} */
+  reactivateSubscription: () => request("/api/billing/reactivate", { method: "POST" }),
 
   // Booking (Calendly-style) — an advisor's shared availability, their
   // (possibly several) named booking links, and the request queue are all
