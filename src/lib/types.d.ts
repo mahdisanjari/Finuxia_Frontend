@@ -200,6 +200,16 @@ export interface InvoiceList {
   invoices: Invoice[];
 }
 
+/** GET /api/billing/plans. */
+export interface BillingPlans {
+  plans: Plan[];
+  stripeConfigured: boolean;
+  /** False until payments are connected (and no demo mode): plans cannot be bought online yet. */
+  purchasesOpen: boolean;
+  /** The support contact for a customer who cannot buy online. From server configuration; empty if none is set. */
+  supportEmail: string;
+}
+
 export interface PurchaseResponse {
   mock?: boolean;
   checkoutUrl?: string;

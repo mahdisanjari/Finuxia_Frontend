@@ -33,3 +33,15 @@ export function formatLongDate(iso) {
   if (!date || Number.isNaN(date.getTime())) return "";
   return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
+
+/**
+ * Whole days left until an instant (an ISO string from the server), counting a part day as a day: 0 once it has passed. Null if there is no
+ * valid date, so a caller can show nothing instead of "NaN days".
+ * @param {string | null | undefined} iso
+ * @param {Date} [now]
+ */
+export function daysLeft(iso, now = new Date()) {
+  const end = iso ? new Date(iso) : null;
+  if (!end || Number.isNaN(end.getTime())) return null;
+  return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / 86400000));
+}

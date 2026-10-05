@@ -490,6 +490,7 @@ export const api = {
   // Billing / subscription plans — modules, plans, purchase (real Stripe
   // Checkout once configured, an instant "mock" purchase until then).
   /** @returns {Promise<import("./types").PlansResponse>} */
+  /** @returns {Promise<import("./types").BillingPlans>} */
   getBillingPlans: () => request("/api/billing/plans"),
   /** @returns {Promise<import("./types").BillingStatus>} */
   getMyBillingStatus: () => request("/api/billing/me"),

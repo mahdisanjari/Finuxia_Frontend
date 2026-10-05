@@ -50,6 +50,17 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // Re-reads the signed-in account (its subscription state changes when a plan is bought or ends). Null if the session is gone.
+  const refreshUser = async () => {
+    try {
+      const { user: me } = await api.me();
+      setUser(me);
+      return me;
+    } catch {
+      return null;
+    }
+  };
+
   const login = async (identifier, password) => {
     const { user: u } = await api.login(identifier, password);
     setUser(u);
@@ -129,6 +140,7 @@ export function AuthProvider({ children }) {
       billing,
       billingStatus,
       refreshBilling,
+      refreshUser,
       hasModule,
       login,
       register,
