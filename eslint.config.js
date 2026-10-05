@@ -40,6 +40,11 @@ export default [
     linterOptions: { reportUnusedDisableDirectives: "error" },
   },
   {
+    // Tests run under Node (they read env vars, files and the clock), so Node's globals are theirs too.
+    files: ["src/**/*.test.{js,jsx}", "src/test/**"],
+    languageOptions: { globals: { ...globals.browser, ...globals.node } },
+  },
+  {
     files: ["scripts/**/*.mjs", "*.config.js"],
     languageOptions: { ecmaVersion: "latest", sourceType: "module", globals: { ...globals.node } },
   },
