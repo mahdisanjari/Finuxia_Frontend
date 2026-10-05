@@ -37,6 +37,11 @@ beforeEach(() => {
       state = body.immediately ? { ...active(), status: "canceled", canceledAt: at(2026, 1, 10) } : pending();
       return HttpResponse.json(state);
     }),
+    http.delete(`${API}/api/billing/plan-change`, () => {
+      posts.push({ path: "unschedule" });
+      state = active();
+      return HttpResponse.json(state);
+    }),
     http.post(`${API}/api/billing/portal`, async ({ request }) => {
       posts.push({ path: "portal", body: await request.json() });
       return HttpResponse.json({ url: "https://billing.stripe.com/p/session/abc" });
@@ -313,5 +318,57 @@ describe("the card and the invoices live at Stripe", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Manage payment method & invoices" }));
     await waitFor(() => expect(toast()).toMatch(/no billing account to manage/));
     expect(window.location.href).toBe("http://localhost/billing");
+  });
+});
+
+describe("a scheduled plan change", () => {
+  const scheduled = () => ({ ...active(), pendingPlan: { key: "professional", name: "Professional" }, pendingPlanAt: at(2026, 2, 1) });
+
+  it("says when the plan changes and that the current one is kept until then", async () => {
+    state = scheduled();
+    show();
+    expect(
+      await screen.findByText(/Your plan changes to Professional on February 1, 2026\. Until then you keep Elite\./)
+    ).toBeInTheDocument();
+  });
+
+  it("is not described as a cancellation, and the card still offers to cancel", async () => {
+    state = scheduled();
+    show();
+    await screen.findByText(/Your plan changes to Professional/);
+    expect(screen.queryByText(/Your subscription ends on/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel subscription" })).toBeInTheDocument();
+  });
+
+  it("'Keep Elite' takes it back", async () => {
+    state = scheduled();
+    show();
+    await userEvent.click(await screen.findByRole("button", { name: "Keep Elite" }));
+    await waitFor(() => expect(posts).toEqual([{ path: "unschedule" }]));
+    await waitFor(() => expect(screen.queryByText(/Your plan changes to/)).not.toBeInTheDocument());
+    expect(toast()).toMatch(/you're staying on Elite/);
+  });
+
+  it("a failure to take it back is a message and the banner stays", async () => {
+    state = scheduled();
+    server.use(
+      http.delete(`${API}/api/billing/plan-change`, () => HttpResponse.json({ error: "Stripe is unreachable." }, { status: 502 }))
+    );
+    show();
+    await userEvent.click(await screen.findByRole("button", { name: "Keep Elite" }));
+    await waitFor(() => expect(toast()).toMatch(/Stripe is unreachable/));
+    expect(screen.getByText(/Your plan changes to Professional/)).toBeInTheDocument();
+  });
+
+  it("without a date it still says the change comes at the end of the period", async () => {
+    state = { ...scheduled(), pendingPlanAt: null };
+    show();
+    expect(await screen.findByText(/Your plan changes to Professional at the end of this billing period/)).toBeInTheDocument();
+  });
+
+  it("nothing is shown when no change is scheduled", async () => {
+    show();
+    await screen.findByText("Elite");
+    expect(screen.queryByText(/Your plan changes to/)).not.toBeInTheDocument();
   });
 });

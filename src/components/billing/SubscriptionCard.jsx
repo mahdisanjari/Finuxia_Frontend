@@ -18,6 +18,7 @@ export default function SubscriptionCard() {
   const { addToast } = useToast();
   const [cancelling, setCancelling] = useState(false);
   const [reactivating, setReactivating] = useState(false);
+  const [keeping, setKeeping] = useState(false);
   const { opening, openPortal } = useBillingPortal();
 
   const plan = billing?.plan;
@@ -39,6 +40,19 @@ export default function SubscriptionCard() {
       if (err.status === 409) await refreshBilling(); // the period ended in the meantime: the page now shows the plans to choose from
     } finally {
       setReactivating(false);
+    }
+  };
+
+  const keepCurrentPlan = async () => {
+    setKeeping(true);
+    try {
+      await api.cancelScheduledPlanChange();
+      await refreshBilling();
+      addToast(`Okay, you're staying on ${plan.name}.`);
+    } catch (err) {
+      addToast(err.message || "Could not take back the plan change");
+    } finally {
+      setKeeping(false);
     }
   };
 
@@ -87,6 +101,29 @@ export default function SubscriptionCard() {
           ) : (
             <span className="font-medium">To continue, choose a plan below.</span>
           )}
+        </div>
+      )}
+
+      {billing.pendingPlan && !ended && (
+        <div
+          role="status"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+        >
+          <span className="flex items-center gap-2">
+            <CalendarClock size={16} className="shrink-0 text-gold-dark" />
+            {formatLongDate(billing.pendingPlanAt) ? (
+              <>
+                Your plan changes to {billing.pendingPlan.name} on {formatLongDate(billing.pendingPlanAt)}. Until then you keep {plan.name}.
+              </>
+            ) : (
+              <>
+                Your plan changes to {billing.pendingPlan.name} at the end of this billing period. Until then you keep {plan.name}.
+              </>
+            )}
+          </span>
+          <Button variant="secondary" size="sm" loading={keeping} onClick={keepCurrentPlan}>
+            Keep {plan.name}
+          </Button>
         </div>
       )}
 

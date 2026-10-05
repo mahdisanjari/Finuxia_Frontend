@@ -156,6 +156,30 @@ export interface BillingStatus {
   canceledAt?: ISODateTime | null;
   /** The cancellation can still be taken back (the paid period has not ended). */
   canReactivate?: boolean;
+  /** A downgrade that takes effect at `pendingPlanAt`; until then the current plan stays as it is. */
+  pendingPlan?: { key: string; name: string } | null;
+  pendingPlanAt?: ISODateTime | null;
+}
+
+/** POST /api/billing/plan-change/preview. */
+export interface PlanChangePreview {
+  kind: "upgrade" | "downgrade";
+  effective: "now" | "period_end";
+  effectiveAt: ISODateTime | null;
+  plan: { id: number; key: string; name: string; priceCents: number; currency: string; interval: string };
+  currentPlan: { id: number; key: string; name: string; priceCents: number; currency: string; interval: string };
+  /** What an upgrade will invoice (Stripe's figure; negative is a credit); zero for a downgrade. */
+  totalCents: number;
+  amountDueCents: number;
+  currency: string;
+  lines: { description: string; amountCents: number; proration: boolean }[];
+  /** The instant an upgrade's figure was worked out at: sent back when confirming, so the charge is worked out the same way. */
+  prorationDate: number | null;
+  billingDate: ISODateTime | null;
+  modulesLost: string[];
+  modulesGained: string[];
+  warnings: string[];
+  alreadyScheduled: boolean;
 }
 
 export interface Invoice {

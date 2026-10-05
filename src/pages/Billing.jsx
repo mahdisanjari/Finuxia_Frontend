@@ -4,6 +4,7 @@ import { rememberPlanBeforeCheckout } from "../lib/checkout";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { api } from "../lib/api";
+import ChangePlanModal from "../components/billing/ChangePlanModal";
 import InvoiceHistory from "../components/billing/InvoiceHistory";
 import SubscriptionCard from "../components/billing/SubscriptionCard";
 
@@ -21,6 +22,7 @@ export default function Billing() {
   // False in production until payments are connected: paid plans can't be selected yet.
   const [purchasesOpen, setPurchasesOpen] = useState(true);
   const [purchasingId, setPurchasingId] = useState(null);
+  const [changingTo, setChangingTo] = useState(null);
 
   useEffect(() => {
     api
@@ -35,6 +37,27 @@ export default function Billing() {
 
   const currentPlanKey = billing?.plan?.key;
   const isLegacy = currentPlanKey === "legacy";
+
+  // A paying customer moves between plans with the change flow (previewed, prorated by Stripe, a downgrade waits for the period's end);
+  // buying is for someone with no paid subscription.
+  const paying = billing?.plan?.priceCents > 0 && !isLegacy && billing?.status !== "canceled";
+  const changeBlocker = !paying
+    ? ""
+    : billing.cancelAtPeriodEnd
+      ? "Keep your subscription first"
+      : billing.status === "past_due"
+        ? "Fix your payment first"
+        : "";
+  const changeLabel = (plan) => (plan.priceCents > billing.plan.priceCents ? "Upgrade" : "Downgrade");
+
+  const planChanged = async (result) => {
+    await refreshBilling();
+    addToast(
+      result.outcome === "upgraded"
+        ? "Your plan has been upgraded."
+        : "Your plan change is scheduled. Nothing changes until your current period ends."
+    );
+  };
 
   const handlePurchase = async (plan) => {
     setPurchasingId(plan.id);
@@ -119,24 +142,33 @@ export default function Billing() {
 
               <button
                 type="button"
-                onClick={() => handlePurchase(plan)}
-                disabled={isCurrent || purchasingId === plan.id || isLegacy || (!purchasesOpen && plan.priceCents > 0)}
+                onClick={() => (paying ? setChangingTo(plan) : handlePurchase(plan))}
+                disabled={
+                  isCurrent ||
+                  purchasingId === plan.id ||
+                  isLegacy ||
+                  Boolean(paying && changeBlocker) ||
+                  (!paying && !purchasesOpen && plan.priceCents > 0)
+                }
                 className="rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isCurrent
                   ? "Active"
-                  : purchasingId === plan.id
-                    ? "Processing..."
-                    : !purchasesOpen && plan.priceCents > 0
-                      ? "Not available yet"
-                      : stripeConfigured
-                        ? "Subscribe"
-                        : "Get this plan (test)"}
+                  : paying
+                    ? changeBlocker || changeLabel(plan)
+                    : purchasingId === plan.id
+                      ? "Processing..."
+                      : !purchasesOpen && plan.priceCents > 0
+                        ? "Not available yet"
+                        : stripeConfigured
+                          ? "Subscribe"
+                          : "Get this plan (test)"}
               </button>
             </div>
           );
         })}
       </div>
+      {changingTo && <ChangePlanModal plan={changingTo} onClose={() => setChangingTo(null)} onChanged={planChanged} />}
     </div>
   );
 }

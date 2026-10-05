@@ -26,15 +26,15 @@ describe("starting a purchase", () => {
     server.use(
       http.get(`${API}/api/billing/plans`, () => HttpResponse.json({ plans, stripeConfigured: true, purchasesOpen: true })),
       http.get(`${API}/api/billing/me`, () =>
-        HttpResponse.json({ ...testBilling, plan: { key: "professional", name: "Professional", priceCents: 4900 } })
+        HttpResponse.json({ ...testBilling, plan: { key: "starter", name: "Starter", priceCents: 0 } })
       ),
       http.post(`${API}/api/billing/purchase`, () => HttpResponse.json({ checkoutUrl: "https://checkout.example/session" }))
     );
     renderWithProviders(<Billing />, { providers: ["router", "toast", "auth"] });
-    const subscribe = await screen.findAllByRole("button", { name: "Subscribe" }); // Professional is the current plan ("Active")
+    const subscribe = await screen.findAllByRole("button", { name: "Subscribe" });
     await userEvent.click(subscribe[0]);
     await waitFor(() => expect(window.location.href).toBe("https://checkout.example/session"));
-    expect(planBeforeCheckout()).toBe("professional");
+    expect(planBeforeCheckout()).toBe("starter");
   });
 });
 
@@ -110,5 +110,120 @@ describe("the invoices on the page", () => {
     await screen.findAllByRole("button", { name: /Subscribe/ });
     expect(screen.queryByRole("region", { name: "Invoices" })).not.toBeInTheDocument();
     expect(asked).toBe(0);
+  });
+});
+
+describe("changing plan from the page", () => {
+  const meAs = (plan, extra = {}) =>
+    http.get(`${API}/api/billing/me`, () => HttpResponse.json({ ...testBilling, status: "active", plan, ...extra }));
+  const withPlans = () =>
+    http.get(`${API}/api/billing/plans`, () =>
+      HttpResponse.json({
+        plans: [
+          { id: 0, key: "starter", name: "Starter", description: "", priceCents: 0, currency: "usd", interval: "month", modules: [] },
+          ...plans,
+        ],
+        stripeConfigured: true,
+        purchasesOpen: true,
+      })
+    );
+  const upgradePreview = {
+    kind: "upgrade",
+    effective: "now",
+    effectiveAt: null,
+    plan: plans[1],
+    currentPlan: plans[0],
+    totalCents: 3300,
+    amountDueCents: 3300,
+    currency: "usd",
+    lines: [],
+    prorationDate: 1767225600,
+    billingDate: new Date(2026, 1, 1, 12).toISOString(),
+    modulesGained: [],
+    modulesLost: [],
+    warnings: [],
+    alreadyScheduled: false,
+  };
+
+  it("a paying customer is offered Upgrade and Downgrade, not Subscribe", async () => {
+    server.use(withPlans(), meAs(plans[0]));
+    renderWithProviders(<Billing />, { providers: ["router", "toast", "auth"] });
+    expect(await screen.findByRole("button", { name: "Upgrade" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Downgrade" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Active" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Subscribe" })).not.toBeInTheDocument();
+  });
+
+  it("choosing one opens the preview, and confirming an upgrade says so on the page", async () => {
+    let state = plans[0];
+    server.use(
+      withPlans(),
+      http.get(`${API}/api/billing/me`, () => HttpResponse.json({ ...testBilling, status: "active", plan: state })),
+      http.post(`${API}/api/billing/plan-change/preview`, () => HttpResponse.json(upgradePreview)),
+      http.post(`${API}/api/billing/plan-change`, () => {
+        state = plans[1];
+        return HttpResponse.json({ outcome: "upgraded" });
+      })
+    );
+    renderWithProviders(<Billing />, { providers: ["router", "toast", "auth"] });
+    await userEvent.click(await screen.findByRole("button", { name: "Upgrade" }));
+    expect(await screen.findByRole("dialog", { name: /Switch to Elite now/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Upgrade now" }));
+    await waitFor(() => expect(document.querySelector("[role=status][aria-live]")?.textContent).toMatch(/Your plan has been upgraded/));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Upgrade" })).not.toBeInTheDocument()); // now on the top plan: nothing above it
+    expect(screen.getAllByRole("button", { name: "Downgrade" })).toHaveLength(2);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("a downgrade says it is scheduled and that nothing changes yet", async () => {
+    server.use(
+      withPlans(),
+      meAs(plans[1]),
+      http.post(`${API}/api/billing/plan-change/preview`, () =>
+        HttpResponse.json({
+          ...upgradePreview,
+          kind: "downgrade",
+          effective: "period_end",
+          effectiveAt: new Date(2026, 1, 1, 12).toISOString(),
+          plan: plans[0],
+          currentPlan: plans[1],
+          totalCents: 0,
+          amountDueCents: 0,
+          prorationDate: null,
+          warnings: ["Until then nothing changes."],
+        })
+      ),
+      http.post(`${API}/api/billing/plan-change`, () => HttpResponse.json({ outcome: "scheduled" }))
+    );
+    renderWithProviders(<Billing />, { providers: ["router", "toast", "auth"] });
+    const buttons = await screen.findAllByRole("button", { name: "Downgrade" });
+    await userEvent.click(buttons[0]);
+    await userEvent.click(await screen.findByRole("button", { name: "Schedule the change" }));
+    await waitFor(() =>
+      expect(document.querySelector("[role=status][aria-live]")?.textContent).toMatch(/Nothing changes until your current period ends/)
+    );
+  });
+
+  it("while a cancellation is pending, or a payment has failed, changing is blocked with the reason", async () => {
+    server.use(
+      withPlans(),
+      meAs(plans[0], { cancelAtPeriodEnd: true, endsAt: new Date(2026, 1, 1, 12).toISOString(), canReactivate: true })
+    );
+    const first = renderWithProviders(<Billing />, { providers: ["router", "toast", "auth"] });
+    const blocked = await screen.findAllByRole("button", { name: "Keep your subscription first" });
+    expect(blocked.length).toBeGreaterThan(0);
+    blocked.forEach((b) => expect(b).toBeDisabled());
+    first.unmount();
+    server.use(meAs(plans[0], { status: "past_due" }));
+    renderWithProviders(<Billing />, { providers: ["router", "toast", "auth"] });
+    const failed = await screen.findAllByRole("button", { name: "Fix your payment first" });
+    failed.forEach((b) => expect(b).toBeDisabled());
+  });
+
+  it("a customer on the free plan still sees Subscribe", async () => {
+    server.use(withPlans(), meAs({ key: "starter", name: "Starter", priceCents: 0 }));
+    renderWithProviders(<Billing />, { providers: ["router", "toast", "auth"] });
+    expect((await screen.findAllByRole("button", { name: "Subscribe" })).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Upgrade" })).not.toBeInTheDocument();
   });
 });

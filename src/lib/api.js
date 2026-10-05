@@ -512,6 +512,18 @@ export const api = {
   /** The customer's invoices as Stripe reports them. `available: false` means payments are not connected yet. @returns {Promise<import("./types").InvoiceList>} */
   getInvoices: () => request("/api/billing/invoices"),
 
+  // Changing plan. The preview is Stripe's own prorated figure for an upgrade (applied now, the billing date unchanged) or what a downgrade
+  // loses and when (it waits for the end of the paid period). Confirming an upgrade sends back the total and the instant the preview was worked
+  // out at; the server answers 409 (code price_changed, with the new `preview` in the body) if the figure has moved.
+  /** @param {number} planId @returns {Promise<import("./types").PlanChangePreview>} */
+  previewPlanChange: (planId) => request("/api/billing/plan-change/preview", { method: "POST", body: { planId } }),
+  /** @param {{ planId: number, expectedTotalCents?: number, prorationDate?: number }} change @returns {Promise<import("./types").BillingStatus & { outcome: "upgraded" | "scheduled" }>} */
+  changePlan: ({ planId, expectedTotalCents, prorationDate }) =>
+    request("/api/billing/plan-change", { method: "POST", body: { planId, expectedTotalCents, prorationDate } }),
+  // Takes back a downgrade that has not taken effect yet.
+  /** @returns {Promise<import("./types").BillingStatus>} */
+  cancelScheduledPlanChange: () => request("/api/billing/plan-change", { method: "DELETE" }),
+
   // Ending a subscription: by default access continues to the end of the paid period. Ending it right now forfeits the rest of
   // the period, so the server wants `confirmImmediate` as well. Nothing is ever refunded by either call.
   /** @param {{ reason?: string, immediately?: boolean, confirmImmediate?: boolean }} [options] @returns {Promise<import("./types").BillingStatus>} */
