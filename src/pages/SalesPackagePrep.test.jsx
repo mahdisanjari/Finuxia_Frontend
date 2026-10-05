@@ -146,9 +146,11 @@ describe("starting", () => {
   it("with no id and no saved packages it creates a draft and puts its id in the address", async () => {
     server.use(http.get(`${P}/packages`, () => HttpResponse.json([])));
     renderWizard("/sales");
-    // (putting the id in the address makes the wizard load that package again, so wait for the address first)
+    // (putting the id in the address makes the wizard load that package again, so wait for the address first, and then for the wizard to
+    // be there for good: it shows for a moment, is replaced by "Loading..." while the package is fetched, and comes back, so a one-off
+    // find could catch the first appearance and then assert on an element that has already been removed)
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("?id=2"));
-    expect(await screen.findByText("Client Information")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Client Information")).toBeInTheDocument());
   });
 
   it("with saved packages it shows the picker: continue one, delete one, or start a new one", async () => {
