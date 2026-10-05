@@ -47,6 +47,8 @@ export const defaultHandlers = [
   ),
   http.put(`${API}/api/state`, () => HttpResponse.json({})),
   http.get(`${API}/api/billing/plans`, () => HttpResponse.json({ plans: [], stripeConfigured: false, purchasesOpen: true })),
+  http.get(`${API}/api/sales-packages/companies`, () => HttpResponse.json([])),
+  http.get(`${API}/api/sales-packages/companies/:id/products`, () => HttpResponse.json([])),
   http.get(`${API}/api/tickets`, () => HttpResponse.json([])),
   http.get(`${API}/api/reminders`, () => HttpResponse.json([])),
   http.get(`${API}/api/booking/requests`, () => HttpResponse.json([])),
