@@ -71,6 +71,8 @@ export function ClientsProvider({ children }) {
   const [doneTasks, setDoneTasks] = useState({});
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
+  // True while the rest of the clients are still arriving behind the first page.
+  const [loadingMore, setLoadingMore] = useState(false);
   const [syncError, setSyncError] = useState(null);
 
   const hydratedRef = useRef(false); // becomes true after the initial load settles
@@ -89,13 +91,41 @@ export function ClientsProvider({ children }) {
 
   // Fetches the server's clients and state and makes them the confirmed copy (what edits are diffed against).
   // `isCancelled` lets the login effect drop the result if the user changed while it was in flight.
-  const loadFromServer = async (isCancelled = () => false) => {
+  const loadFromServer = async (isCancelled = () => false, showEarly = clientsRef.current.length === 0) => {
+    // The server hands clients over a page at a time. With nothing on screen yet (`showEarly`: no cache), the first page is shown at once and the
+    // rest are added behind it, so a long list does not keep the advisor waiting; edits made meanwhile are kept (pages are merged by id, never
+    // replacing what is there). With the cache already on screen the complete list is swapped in at the end, as before: no flicker of a shrinking
+    // list.
+    let shownFirstPage = false;
+    const onPage = (items) => {
+      if (!showEarly || isCancelled()) return;
+      const page = normalize(items);
+      if (!shownFirstPage) {
+        shownFirstPage = true;
+        snapshotRef.current = new Map(page.map((c) => [String(c.id), { version: c.version, json: contentJson(c) }]));
+        setClients(page);
+        setLoading(false);
+        setLoadingMore(true);
+        return;
+      }
+      for (const c of page)
+        if (!snapshotRef.current.has(String(c.id))) snapshotRef.current.set(String(c.id), { version: c.version, json: contentJson(c) });
+      setClients((prev) => {
+        const have = new Set(prev.map((c) => String(c.id)));
+        return [...prev, ...page.filter((c) => !have.has(String(c.id)))];
+      });
+    };
     try {
-      const [serverClients, serverState] = await Promise.all([api.getClients(), api.getState()]);
+      const [serverClients, serverState] = await Promise.all([
+        api.getAllPages("/api/clients", {}, { onPage, isCancelled }),
+        api.getState(),
+      ]);
       if (isCancelled()) return;
       const normalized = normalize(serverClients);
-      snapshotRef.current = new Map(normalized.map((c) => [String(c.id), { version: c.version, json: contentJson(c) }]));
-      setClients(normalized);
+      if (!shownFirstPage) {
+        snapshotRef.current = new Map(normalized.map((c) => [String(c.id), { version: c.version, json: contentJson(c) }]));
+        setClients(normalized);
+      }
       setDoneTasks(serverState?.doneTasks || {});
       setGroups(serverState?.groups || []);
       writeCache(keys.clients, normalized);
@@ -107,10 +137,14 @@ export function ClientsProvider({ children }) {
     } finally {
       if (!isCancelled()) {
         setLoading(false);
+        setLoadingMore(false);
         // Flip AFTER effects from the setState above have run, so the sync
         // effects below don't echo the just-loaded data back to the server.
         setTimeout(() => {
           hydratedRef.current = true;
+          // Edits made while the later pages were still arriving are unsent (sync was off). Touch the list so the sync effect runs once, from the
+          // rendered state, now that everything is loaded and confirmed.
+          if (shownFirstPage) setClients((prev) => [...prev]);
         }, 0);
       }
     }
@@ -141,12 +175,13 @@ export function ClientsProvider({ children }) {
     }
 
     // Instant paint from cache, then reconcile with the server.
-    setClients(normalize(readCache(keys.clients, [])));
+    const cached = normalize(readCache(keys.clients, []));
+    setClients(cached);
     setDoneTasks(readCache(keys.done, {}));
     setGroups(readCache(keys.groups, []));
     setLoading(true);
     let cancelled = false;
-    loadFromServer(() => cancelled);
+    loadFromServer(() => cancelled, cached.length === 0);
 
     return () => {
       cancelled = true;
@@ -606,6 +641,7 @@ export function ClientsProvider({ children }) {
     () => ({
       clients,
       loading,
+      loadingMore,
       syncError,
       refreshFromServer,
       addClient,
@@ -635,7 +671,7 @@ export function ClientsProvider({ children }) {
       getGroupsForClient,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the context value changes with the data, not with the identity of the action functions: they are recreated each render but only read refs and call setState
-    [clients, doneTasks, groups, loading, syncError]
+    [clients, doneTasks, groups, loading, loadingMore, syncError]
   );
 
   return <ClientsContext.Provider value={value}>{children}</ClientsContext.Provider>;

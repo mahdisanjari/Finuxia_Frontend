@@ -260,3 +260,9 @@ export interface ErrorBody {
   actions?: ("top_up" | "upgrade" | "contact_support")[];
   [field: string]: unknown;
 }
+
+/** One page of a collection: the items, and the cursor to ask for the next page with (null on the last). */
+export interface Page<T> {
+  results: T[];
+  nextCursor: string | null;
+}

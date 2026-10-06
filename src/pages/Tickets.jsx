@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LifeBuoy, Plus, MessageSquare, Bug, Sparkles } from "lucide-react";
-import useAsync from "../hooks/useAsync";
-import { api } from "../lib/api";
+import usePagedList from "../hooks/usePagedList";
 import { formatDate } from "../lib/followUp";
 import { ticketStatusMeta, ticketTypeMeta } from "../lib/statusMeta";
-import { Badge, Button } from "../components/ui";
+import { Badge, Button, LoadMore } from "../components/ui";
 import NewTicketModal from "../components/tickets/NewTicketModal";
 
 export default function Tickets() {
   const navigate = useNavigate();
-  const { data: tickets, loading, error } = useAsync(() => api.getTickets(), [], { initialData: [] });
+  const { items: tickets, loading, loadingMore, hasMore, loadMore, error } = usePagedList("/api/tickets");
   const [modalOpen, setModalOpen] = useState(false);
 
   return (
@@ -36,7 +35,7 @@ export default function Tickets() {
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-gold" />
           Loading…
         </div>
-      ) : error ? (
+      ) : error && tickets.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-av-red/30 bg-white px-6 py-10 text-center text-sm text-av-red">
           {error.message}
         </div>
@@ -76,6 +75,7 @@ export default function Tickets() {
               </button>
             );
           })}
+          <LoadMore hasMore={hasMore} loadingMore={loadingMore} error={tickets.length > 0 ? error : null} onLoadMore={loadMore} />
         </div>
       )}
 

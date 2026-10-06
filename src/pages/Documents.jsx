@@ -1,27 +1,27 @@
 import { useState } from "react";
 import { FileStack, Plus, Download, FileText } from "lucide-react";
 import useAsync from "../hooks/useAsync";
+import usePagedList from "../hooks/usePagedList";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
 import { documentStatusMeta } from "../lib/statusMeta";
-import { Badge, Button } from "../components/ui";
+import { Badge, Button, LoadMore } from "../components/ui";
 import SubmitDocumentModal from "../components/documents/SubmitDocumentModal";
 
 export default function Documents() {
   const { addToast } = useToast();
+  // The shared library is read a page at a time (it grows with every advisor's submissions); the advisor's own submissions are few and read whole.
+  const library = usePagedList("/api/documents");
+  const { items: documents, hasMore, loadingMore, loadMore } = library;
   const {
-    data: { documents, mine },
-    loading,
-    error,
-    reload: load,
-  } = useAsync(
-    async () => {
-      const [documents, mine] = await Promise.all([api.getDocuments(), api.getMyDocuments()]);
-      return { documents, mine };
-    },
-    [],
-    { initialData: { documents: [], mine: [] } }
-  );
+    data: mine,
+    loading: loadingMine,
+    error: errorMine,
+    reload: reloadMine,
+  } = useAsync(() => api.getMyDocuments(), [], { initialData: [] });
+  const loading = library.loading || loadingMine;
+  const error = (library.items.length === 0 ? library.error : null) || errorMine;
+  const load = () => Promise.all([library.reload(), reloadMine()]);
   const [modalOpen, setModalOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
 
@@ -137,6 +137,12 @@ export default function Documents() {
                     </div>
                   </div>
                 ))}
+                <LoadMore
+                  hasMore={hasMore}
+                  loadingMore={loadingMore}
+                  error={library.items.length > 0 ? library.error : null}
+                  onLoadMore={loadMore}
+                />
               </div>
             )}
           </section>
