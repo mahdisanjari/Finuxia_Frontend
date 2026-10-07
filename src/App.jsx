@@ -82,7 +82,7 @@ export default function App() {
         <Route path="/booking-links" element={<BookingLinks />} />
         <Route path="/tickets" element={<Tickets />} />
         <Route path="/tickets/:id" element={<TicketDetail />} />
-        <Route path="/advisor-assistant/presentations" element={<Presentations />} />
+        <Route path="/advisor-assistant/presentations" element={<ModuleGate moduleKey="presentations" moduleName="Presentations"><Presentations /></ModuleGate>} />
         <Route path="/advisor-assistant/strategy-prep" element={<StrategyPrep />} />
         <Route path="/advisor-assistant/sales-package" element={<ModuleGate moduleKey="sales_package_prep" moduleName="Sales Package Prep"><SalesPackagePrep /></ModuleGate>} />
         <Route path="/profile" element={<Profile />} />
