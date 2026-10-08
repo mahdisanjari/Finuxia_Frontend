@@ -61,7 +61,7 @@ Calendar integration.
 
 - **Stack:** Vitest (the Vite test runner), jsdom, React Testing Library, `user-event`, and MSW (Mock Service Worker) to mock the API at the network level, so the real API client, cookies, CSRF header and refresh-and-retry run in tests.
 - **Test files** sit next to the code: `src/lib/api.test.js`, `src/context/AuthContext.test.jsx`, ...
-- **`src/test/utils.jsx`:** `renderWithProviders(ui, { route })` renders inside the application's provider tree (router, toasts, auth, clients, the same order as `main.jsx`); use it instead of assembling providers in each test. It also re-exports Testing Library.
+- **`src/test/utils.jsx`:** `renderWithProviders(ui, { route })` renders inside the application's provider tree (router, toasts, auth, Google Calendar, clients, the same order as `main.jsx`); use it instead of assembling providers in each test. It also re-exports Testing Library.
 - **`src/test/handlers.js`:** the default API answers (a signed-in advisor with no clients). Override per test with `server.use(http.get(`${API}/api/...`, () => HttpResponse.json(...)))`. A request with no handler fails the test, so nothing ever reaches a real network.
 - **Coverage floor:** set just under what the tests cover today (most of the app is not yet tested). Raise the numbers in `vite.config.js` whenever coverage goes up; never lower them.
 - **CI:** the `test` job in `.github/workflows/ci.yml` runs `npm run test:coverage`. Mark it as a required status check in the repository's branch protection settings.

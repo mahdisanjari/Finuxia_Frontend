@@ -6,20 +6,26 @@ import { ClientsProvider } from "./context/ClientsContext";
 import { ToastProvider } from "./context/ToastContext";
 import { AuthProvider } from "./context/AuthContext";
 import { GoogleCalendarProvider } from "./context/GoogleCalendarContext";
+import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
+
+// Error tracking (OPS-01) plugs in here: setErrorReporter((error, context) => tracker.capture(error, context)).
+// Until then caught errors are logged to the console (src/lib/errorReporting.js).
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <ToastProvider>
-        <AuthProvider>
-          <GoogleCalendarProvider>
-            <ClientsProvider>
-              <App />
-            </ClientsProvider>
-          </GoogleCalendarProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </BrowserRouter>
+    <ErrorBoundary variant="app">
+      <BrowserRouter>
+        <ToastProvider>
+          <AuthProvider>
+            <GoogleCalendarProvider>
+              <ClientsProvider>
+                <App />
+              </ClientsProvider>
+            </GoogleCalendarProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 );
