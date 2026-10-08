@@ -49,8 +49,8 @@ export default function Profile() {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    if (pw.next.length < 10) {
-      addToast("The new password must be at least 10 characters.");
+    if (pw.next.length < 12) {
+      addToast("The new password must be at least 12 characters.");
       return;
     }
     if (pw.next !== pw.confirm) {
@@ -225,7 +225,7 @@ export default function Profile() {
       {tab === "account" && (
         <section className="rounded-2xl bg-white p-6 shadow-sm">
           <h2 className="mb-1 text-sm font-semibold text-navy">Change password</h2>
-          <p className="mb-4 text-xs text-slate-500">At least 10 characters. Changing it signs out your other devices.</p>
+          <p className="mb-4 text-xs text-slate-500">At least 12 characters. Changing it signs out your other devices.</p>
           <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
             {[
               ["current", "Current password", "current-password"],
