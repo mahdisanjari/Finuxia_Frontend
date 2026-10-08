@@ -3,6 +3,16 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // Lets scripts/check-bundle.mjs read which chunk imports which, to keep the public pages free of the signed-in app.
+    manifest: true,
+    rollupOptions: {
+      output: {
+        // The framework changes rarely: its own file stays cached across releases of the app code.
+        manualChunks: { react: ["react", "react-dom", "react-router-dom"] },
+      },
+    },
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.js"],

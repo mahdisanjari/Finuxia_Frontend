@@ -62,3 +62,27 @@ describe("the payment-return routes are registered", () => {
     expect(await screen.findByText("Checkout cancelled")).toBeInTheDocument();
   });
 });
+
+describe("lazy loading", () => {
+  it("a public page shows the loading spinner while its code is fetched, then the page", async () => {
+    signedOut();
+    renderWithProviders(<App />, { route: "/privacy" });
+    expect(screen.getByRole("status", { name: "Loading" })).toBeInTheDocument(); // the same spinner the session restore uses
+    expect(await screen.findByRole("heading", { name: /privacy/i })).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Loading" })).not.toBeInTheDocument();
+  });
+
+  it("a public page does not render the signed-in layout", async () => {
+    signedOut();
+    renderWithProviders(<App />, { route: "/terms" });
+    await screen.findByRole("heading", { name: /terms/i });
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+  });
+
+  it("a page of the signed-in app appears inside the layout, with its navigation, once loaded", async () => {
+    server.use(http.get(`${API}/api/guides`, () => HttpResponse.json([])));
+    renderWithProviders(<App />, { route: "/guide" });
+    expect(await screen.findByRole("navigation")).toBeInTheDocument();
+    await screen.findByRole("heading", { name: /guide/i });
+  });
+});

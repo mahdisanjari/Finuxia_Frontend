@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, Outlet, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Plus, LayoutGrid, CalendarDays, Users, Clock, Upload, BarChart3, BookOpen, Sparkles, Target, Presentation, ChevronDown, User as UserIcon, LogOut, LifeBuoy, UsersRound, FolderCog, FileStack, CalendarClock, Link2, Info, Package, CreditCard } from "lucide-react";
@@ -13,6 +13,7 @@ import ReconnectModal from "./ReconnectModal";
 import ConnectNudgeModal from "./ConnectNudgeModal";
 import Footer from "./Footer";
 import VerifyEmailNotice from "./VerifyEmailNotice";
+import PageSpinner from "./PageSpinner";
 import RouteErrorBoundary from "./RouteErrorBoundary";
 
 // The everyday, single-click items — kept short on purpose so the bar
@@ -140,7 +141,10 @@ export default function Layout() {
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-6 sm:px-6">
         <RouteErrorBoundary>
-          <Outlet />
+          {/* A page's code is fetched on first visit: the navigation stays, only this area shows the spinner. */}
+          <Suspense fallback={<PageSpinner inline />}>
+            <Outlet />
+          </Suspense>
         </RouteErrorBoundary>
       </main>
 
