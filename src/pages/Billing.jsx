@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Sparkles, ShieldCheck } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { api } from "../lib/api";
+import { createAttemptKeys, isRetryable } from "../lib/idempotency";
 
 function formatPrice(cents, currency, interval) {
   if (cents === 0) return "Free";
@@ -34,10 +35,17 @@ export default function Billing() {
   const currentPlanKey = billing?.plan?.key;
   const isLegacy = currentPlanKey === "legacy";
 
+  // One key per plan being bought, kept until the attempt's outcome is known (see lib/idempotency).
+  const attemptKeys = useRef(createAttemptKeys());
+  const inFlight = useRef(false);
+
   const handlePurchase = async (plan) => {
+    if (inFlight.current) return; // a second click before the first request returned
+    inFlight.current = true;
     setPurchasingId(plan.id);
     try {
-      const result = await api.purchasePlan(plan.id);
+      const result = await api.purchasePlan(plan.id, attemptKeys.current.keyFor(plan.id));
+      attemptKeys.current.settle(plan.id);
       if (result.mock) {
         await refreshBilling();
         addToast(`You're now on the ${plan.name} plan (test purchase — no real charge, Stripe isn't connected yet).`);
@@ -45,8 +53,12 @@ export default function Billing() {
         window.location.href = result.checkoutUrl;
       }
     } catch (err) {
+      // A definite answer ends the attempt; an unknown outcome (network, 5xx, still in progress)
+      // keeps the key so clicking again retries the SAME purchase instead of starting another.
+      if (!isRetryable(err)) attemptKeys.current.settle(plan.id);
       addToast(err.message || "Could not start checkout");
     } finally {
+      inFlight.current = false;
       setPurchasingId(null);
     }
   };
