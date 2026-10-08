@@ -27,6 +27,8 @@ import Presentations from "./pages/Presentations";
 import SalesPackagePrep from "./pages/SalesPackagePrep";
 import Subscribe from "./pages/Subscribe";
 import Billing from "./pages/Billing";
+import NotFound from "./pages/NotFound";
+import PaymentReturn from "./pages/PaymentReturn";
 import ModuleGate from "./components/ModuleGate";
 import Tickets from "./pages/Tickets";
 import TicketDetail from "./pages/TicketDetail";
@@ -60,6 +62,11 @@ export default function App() {
         }
       />
 
+      {/* Where the payment provider sends the customer back to. Outside Layout like /subscribe, so an account
+          whose trial has ended (the very person paying) is not bounced away before the page can confirm anything. */}
+      <Route path="/billing/success" element={<ProtectedRoute><PaymentReturn outcome="success" /></ProtectedRoute>} />
+      <Route path="/billing/cancel" element={<ProtectedRoute><PaymentReturn outcome="cancel" /></ProtectedRoute>} />
+
       <Route
         element={
           <ProtectedRoute>
@@ -91,7 +98,7 @@ export default function App() {
         <Route path="/billing" element={<Billing />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

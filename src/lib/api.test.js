@@ -136,6 +136,20 @@ describe("the API client", () => {
   });
 });
 
+describe("starting a purchase", () => {
+  it("tells the server to send the customer back to this app's payment-return pages", async () => {
+    let body;
+    server.use(
+      http.post(`${API}/api/billing/purchase`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ checkoutUrl: "https://checkout.example/x" });
+      })
+    );
+    await api.purchasePlan(7);
+    expect(body).toEqual({ planId: 7, successUrl: `${window.location.origin}/billing/success`, cancelUrl: `${window.location.origin}/billing/cancel` });
+  });
+});
+
 describe("clearLocalData", () => {
   it("removes only this app's cached data", () => {
     localStorage.setItem("advisorpilot.clients.x", "1");

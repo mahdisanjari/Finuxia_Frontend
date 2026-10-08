@@ -503,15 +503,17 @@ export const api = {
   // Checkout once configured, an instant "mock" purchase until then).
   getBillingPlans: () => request("/api/billing/plans"),
   getMyBillingStatus: () => request("/api/billing/me"),
-  // The idempotency key makes a double click or a retry after a slow response act once: the
-  // server replays the first response instead of creating a second pending payment.
+  // Two separate concerns, both required:
+  //   - the idempotency key (SEC-08) makes a double click or a retry after a slow response act
+  //     once: the server replays the first response instead of creating a second pending payment
+  //   - successUrl / cancelUrl are where the provider returns the customer, to pages that confirm
+  //     the payment with the server rather than trusting the URL (see PaymentReturn)
   purchasePlan: (planId, idempotencyKey) =>
     request("/api/billing/purchase", {
       method: "POST",
-      body: { planId },
+      body: { planId, successUrl: `${window.location.origin}/billing/success`, cancelUrl: `${window.location.origin}/billing/cancel` },
       headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     }),
-  cancelSubscription: () => request("/api/billing/cancel", { method: "POST" }),
 
   // Booking (Calendly-style) — an advisor's shared availability, their
   // (possibly several) named booking links, and the request queue are all

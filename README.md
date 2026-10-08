@@ -34,9 +34,6 @@ Copy `.env.example` to `.env` and set the backend URL:
 VITE_API_URL=http://localhost:4000
 ```
 
-`VITE_GOOGLE_CLIENT_ID` is optional — it enables the browser-side Google
-Calendar integration.
-
 ## How data flows
 
 - **Auth** is JWT — the token is stored in `localStorage` and attached to every request.

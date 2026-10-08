@@ -18,7 +18,7 @@ export default defineConfig({
       exclude: ["src/main.jsx", "src/test/**", "src/**/*.test.{js,jsx}", "src/data/**"],
       // A floor, not a goal: set just under what the first real tests cover, so coverage can only go up.
       // Raise it as tests are added (see README, "Testing").
-      thresholds: { statements: 12, branches: 58, functions: 22, lines: 12 },
+      thresholds: { statements: 18, branches: 65, functions: 22, lines: 18 },
     },
   },
 });
