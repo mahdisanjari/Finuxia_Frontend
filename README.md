@@ -61,7 +61,7 @@ VITE_API_URL=http://localhost:4000
 - **`src/test/utils.jsx`:** `renderWithProviders(ui, { route })` renders inside the application's provider tree (router, toasts, auth, Google Calendar, clients, the same order as `main.jsx`); use it instead of assembling providers in each test. It also re-exports Testing Library.
 - **`src/test/handlers.js`:** the default API answers (a signed-in advisor with no clients). Override per test with `server.use(http.get(`${API}/api/...`, () => HttpResponse.json(...)))`. A request with no handler fails the test, so nothing ever reaches a real network.
 - **Coverage floor:** set just under what the tests cover today (most of the app is not yet tested). Raise the numbers in `vite.config.js` whenever coverage goes up; never lower them.
-- **CI:** the `test` job in `.github/workflows/ci.yml` runs `npm run test:coverage`. Mark it as a required status check in the repository's branch protection settings.
+- **CI:** the `test` job in `.github/workflows/ci.yml` runs `npm run test:coverage`. It runs on a push to **any** branch, not only `main` and `develop`, so a branch handed over for review has already been tested somewhere other than its author's machine. Still to do, and not a code change: mark `test` and `build` as required status checks for `main` and `develop` in the repository's branch protection settings, which needs repository admin access.
 
 ## Bundle size and code splitting
 
