@@ -1,12 +1,32 @@
 name: CI
 
+# Runs on EVERY branch, not only main and develop (OPS-07).
+#
+# For most of this project's life CI never ran on a feature branch at all. The push trigger covered
+# only main and develop, the pull_request trigger needs a pull request to exist, and branches were
+# pushed and handed over for review without one. So every branch arrived having run only on its
+# author's machine.
+#
+# Widening the push trigger rather than mandating pull requests, deliberately. A trigger cannot be
+# forgotten; a process step can, and forgetting it is exactly what happened.
 on:
   push:
-    branches: [main, develop]
+    branches: ['**']
   pull_request:
 
+# A branch in this repository with an open pull request matches both triggers above. Grouping a push
+# and its pull request under one key means the duplicate is cancelled rather than paid for twice, and
+# a rapid series of pushes to one branch does not leave redundant runs queued.
+#
+# main and develop are exempt from cancellation: every commit on them should end with a completed
+# result rather than a cancelled one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+
 jobs:
-  # Required check: make "test" a required status check for main in the repository's branch protection settings.
+  # Required check: make "test" a required status check for main and develop in the repository's
+  # branch protection settings. Still not done — it needs repository admin access, not a code change.
   test:
     runs-on: ubuntu-latest
     steps:
@@ -35,6 +55,12 @@ jobs:
       - name: Bundle check (public pages and first load exclude the signed-in app; size budget)
         run: npm run check:bundle
       - name: Dependency audit (reported, not yet blocking)
-        # xlsx has no fixed release and react-router needs a major upgrade, so
-        # this reports rather than fails until those are resolved.
+        # Measured 2026-10-09: two MODERATE advisories, both the same one — `uuid` below 11.1.1,
+        # reached through `exceljs`. npm's suggested fix downgrades exceljs to 3.4.0, which is a
+        # breaking change and would undo SEC-04's replacement of the vulnerable `xlsx` parser, so it
+        # is the wrong trade. Blocked until exceljs ships a release carrying a patched uuid.
+        #
+        # The previous note here claimed xlsx had no fixed release and react-router needed a major
+        # upgrade. Both are stale: SEC-04 removed xlsx entirely and react-router is on v7. Tracked
+        # as SEC-10 (SCRUM-79).
         run: npm audit --omit=dev || true
