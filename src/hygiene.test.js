@@ -15,7 +15,20 @@ describe("removed dead code stays removed", () => {
     }
   });
 
-  it("no source file reads an environment variable other than the API address", () => {
+  // Every environment variable the source reads, and nothing else. The list is exact on purpose:
+  // the failure this catches is a variable being read in code and never documented, so nobody
+  // setting up an environment knows it exists. Adding one here is fine; adding one here WITHOUT
+  // adding it to .env.example fails the next test.
+  const EXPECTED_ENV_VARS = [
+    "VITE_API_URL",
+    // Error tracking (OPS-01). All four are inert when VITE_SENTRY_DSN is empty.
+    "VITE_SENTRY_DSN",
+    "VITE_SENTRY_ENVIRONMENT",
+    "VITE_SENTRY_RELEASE",
+    "VITE_SENTRY_TRACES_SAMPLE_RATE",
+  ];
+
+  const envVarsReadBySource = () => {
     const found = new Set();
     const walk = (dir) => {
       for (const name of readdirSync(dir)) {
@@ -25,7 +38,18 @@ describe("removed dead code stays removed", () => {
       }
     };
     walk("src");
-    expect([...found]).toEqual(["VITE_API_URL"]);
+    return [...found];
+  };
+
+  it("no source file reads an environment variable outside the known list", () => {
+    expect(envVarsReadBySource().sort()).toEqual([...EXPECTED_ENV_VARS].sort());
+  });
+
+  it("every environment variable the source reads is documented in .env.example", () => {
+    const example = read(".env.example");
+    for (const name of envVarsReadBySource()) {
+      expect(example, `${name} is read in src/ but missing from .env.example`).toContain(name);
+    }
   });
 
   it("the layout uses no utility class that Tailwind has no definition for (scrollbar-none)", () => {
