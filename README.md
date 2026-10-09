@@ -63,6 +63,32 @@ VITE_API_URL=http://localhost:4000
 - **Coverage floor:** set just under what the tests cover today (most of the app is not yet tested). Raise the numbers in `vite.config.js` whenever coverage goes up; never lower them.
 - **CI:** the `test` job in `.github/workflows/ci.yml` runs `npm run test:coverage`. It runs on a push to **any** branch, not only `main` and `develop`, so a branch handed over for review has already been tested somewhere other than its author's machine. Still to do, and not a code change: mark `test` and `build` as required status checks for `main` and `develop` in the repository's branch protection settings, which needs repository admin access.
 
+## Error tracking
+
+`src/lib/errorTracking.js` (OPS-01). **Off unless `VITE_SENTRY_DSN` is set**, and with no DSN the
+bundle contains none of the SDK — Vite inlines the empty value, so the dynamic import becomes dead
+code and is dropped. Set the DSN in `.env.production`; see `.env.example` for the other three
+variables.
+
+- **Loaded on demand.** The SDK lives in `src/lib/sentryClient.js`, reached by a dynamic import, so
+  it is a separate 24 kB gzip chunk and stays out of the first load. That is not optional: the
+  first-load budget in `scripts/check-bundle.mjs` is 90 kB gzip and the app uses 79.9 kB, so a
+  static import would fail the build. `sentryClient.js` exists purely so the SDK is reached through
+  *static named* imports and can be tree-shaken — importing `@sentry/react` directly in a dynamic
+  import pulls the whole namespace and measured 117 kB instead of 24 kB.
+- **Errors in the first render are not lost.** Because the SDK arrives asynchronously, there is a
+  window with no reporter installed. `src/lib/errorReporting.js` buffers reports made in that window
+  (capped at 10) and flushes them when the reporter arrives.
+- **Every URL is cut at the `?` before it leaves.** `/reset-password?uid=..&token=..` carries a live
+  password-reset token; a breadcrumb recording that navigation would send a working credential to a
+  third party. This applies to the event, to each breadcrumb, and to the `route` tag.
+- **DOM and console breadcrumbs are off**, rather than collected and scrubbed: DOM breadcrumbs record
+  the text of what was clicked, which here is a client's name. Session Replay is off — it would record
+  the screen, and the screen shows clients' identity documents.
+- **The reference on the error screen is a tag.** The `errorId` the recovery screen shows the customer
+  is sent as `error_id`, and the backend's `X-Request-ID` from the most recent API response is sent as
+  `request_id`, so a support call quoting either one finds the event and the matching server logs.
+
 ## Bundle size and code splitting
 
 Every page is loaded on demand (`React.lazy`), so a visitor downloads the shell and the page they open, not the whole app. The public pages (login, register, password reset, privacy, terms, support, the booking page, Zoom docs) never import the signed-in application (`src/AuthenticatedApp.jsx`: the layout, the route table and every page), and the Excel libraries load only when an import or export is actually used. Loading spinners reuse `PageSpinner`: full screen while the app or an out-of-layout page loads, inline inside the layout so the navigation stays put.

@@ -61,16 +61,42 @@ function refreshSession() {
 
 const NO_REFRESH_PATHS = ["/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout"];
 
+// The id of the most recent API response (OPS-01 / OPS-08). The backend puts one on every log line
+// for a request and returns it in X-Request-ID, so attaching it to a UI error report makes a
+// frontend crash and its server-side cause one lookup instead of two unconnected facts.
+//
+// Deliberately only the most recent, not a history: it exists to answer "what was the app just
+// doing when this broke", and a UI error almost always follows the request that caused it.
+let lastResponseRequestId = "";
+
+export function lastRequestId() {
+  return lastResponseRequestId;
+}
+
+/** Testing seam. */
+export function resetLastRequestId() {
+  lastResponseRequestId = "";
+}
+
 // fetch + cookies + CSRF header, and one silent refresh-and-retry on a 401.
 async function authedFetch(path, init = {}) {
-  const send = () => {
+  const send = async () => {
     const method = (init.method || "GET").toUpperCase();
     const headers = { ...(init.headers || {}) };
     if (method !== "GET" && method !== "HEAD") {
       const csrf = readCookie(CSRF_COOKIE);
       if (csrf) headers["X-CSRF-Token"] = csrf;
     }
-    return fetch(`${BASE_URL}${path}`, { ...init, headers, credentials: "include" });
+    const response = await fetch(`${BASE_URL}${path}`, { ...init, headers, credentials: "include" });
+    // Every request in this client funnels through here, so this is the one place it needs doing.
+    // Guarded because a network failure and some test doubles give a response with no headers.
+    try {
+      const id = response?.headers?.get?.("X-Request-ID");
+      if (id) lastResponseRequestId = id;
+    } catch {
+      // A missing or exotic headers object is not worth failing a request over.
+    }
+    return response;
   };
   let res = await send();
   if (res.status === 401 && !NO_REFRESH_PATHS.some((p) => path.startsWith(p))) {

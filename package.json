@@ -13,6 +13,7 @@
     "check:bundle": "node scripts/check-bundle.mjs"
   },
   "dependencies": {
+    "@sentry/react": "8.55.0",
     "exceljs": "^4.4.0",
     "lucide-react": "^0.400.0",
     "react": "^18.3.1",
